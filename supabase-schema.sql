@@ -34,7 +34,7 @@ create trigger on_auth_user_created
 
 -- Dars boshlashdan oldin chaqiriladigan funksiya: kunlik limitni tekshiradi va oshiradi.
 -- VIP foydalanuvchilar uchun cheklov yo'q. Kun almashganda hisoblagich avtomatik nolga tushadi.
-create or replace function check_and_increment_lesson(daily_limit int default 3)
+create or replace function check_and_increment_lesson(daily_limit int default 5)
 returns json as $$
 declare
   prof profiles%rowtype;
