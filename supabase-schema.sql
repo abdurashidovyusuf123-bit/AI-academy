@@ -12,6 +12,8 @@ create table if not exists profiles (
 
 alter table profiles enable row level security;
 
+drop policy if exists "Foydalanuvchi faqat o'z profilini ko'radi" on profiles;
+
 create policy "Foydalanuvchi faqat o'z profilini ko'radi"
   on profiles for select
   using (auth.uid() = user_id);
