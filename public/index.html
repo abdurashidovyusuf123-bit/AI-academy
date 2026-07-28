@@ -1336,19 +1336,46 @@ function setProgress(subjectId, arr){
   localStorage.setItem('aiacademy_progress_' + subjectId, JSON.stringify(arr));
 }
 
-function renderCurriculum(subjectId){
+async function renderCurriculum(subjectId){
   const subject = SUBJECTS.find(s => s.id === subjectId);
-  const modules = CURRICULA[subjectId];
+  let modules = CURRICULA[subjectId];
   const section = document.getElementById('curriculum-section');
   const body = document.getElementById('curriculum-body');
   const title = document.getElementById('curriculum-title');
   const progressLabel = document.getElementById('curriculum-progress');
 
   section.style.display = 'block';
-  title.textContent = subject.label + ' bo\'yicha darslar (70 ta)';
+  title.textContent = subjectLabel(subject) + ' (70)';
 
   const done = getProgress(subjectId);
-  progressLabel.textContent = done.length + '/70 bajarildi';
+  progressLabel.textContent = done.length + '/70 ' + t('curriculum_bajarildi');
+
+  if(currentLang !== 'uz'){
+    const cacheKey = 'aiacademy_curr_i18n_' + subjectId + '_' + currentLang;
+    const cached = localStorage.getItem(cacheKey);
+    if(cached){
+      try{ modules = JSON.parse(cached); }catch(e){ modules = CURRICULA[subjectId]; }
+    } else {
+      const loadingId = 'curr-loading-' + Date.now();
+      body.innerHTML = '<div class="hint" style="text-align:center; padding:20px 0;" id="' + loadingId + '">⏳ ...</div>';
+      try{
+        const sys = 'You are a precise JSON translator. Output ONLY valid JSON, nothing else, no markdown fences.';
+        const userPrompt = 'Translate the "module" and each item in "lessons" into ' + LANG_ENGLISH_NAMES[currentLang] + '. Keep the exact same JSON array structure, same number of modules and lessons, same order. Do not add or remove anything. JSON to translate: ' + JSON.stringify(modules);
+        const res = await callAI(sys, userPrompt);
+        let text = res.trim().replace(/```json/gi, '').replace(/```/g, '').trim();
+        const first = text.indexOf('[');
+        const last = text.lastIndexOf(']');
+        text = text.slice(first, last + 1);
+        const translated = JSON.parse(text);
+        if(Array.isArray(translated) && translated.length === modules.length){
+          modules = translated;
+          localStorage.setItem(cacheKey, JSON.stringify(modules));
+        }
+      }catch(err){
+        console.error('Curriculum translation failed', err);
+      }
+    }
+  }
 
   body.innerHTML = '';
   let lessonIndex = 0;
@@ -1357,7 +1384,7 @@ function renderCurriculum(subjectId){
     modDiv.className = 'module';
     const head = document.createElement('div');
     head.className = 'module-head';
-    head.innerHTML = '<span class="module-title">' + (mIdx+1) + '-modul: ' + mod.module + '</span><span class="module-caret">▸</span>';
+    head.innerHTML = '<span class="module-title">' + (mIdx+1) + '. ' + mod.module + '</span><span class="module-caret">▸</span>';
     head.addEventListener('click', () => { modDiv.classList.toggle('open'); });
 
     const lessonsWrap = document.createElement('div');
@@ -1378,7 +1405,7 @@ function renderCurriculum(subjectId){
         if(check.checked){ if(!d.includes(idx)) d.push(idx); }
         else { d = d.filter(x => x !== idx); }
         setProgress(subjectId, d);
-        progressLabel.textContent = d.length + '/70 bajarildi';
+        progressLabel.textContent = d.length + '/70 ' + t('curriculum_bajarildi');
         labelSpan.classList.toggle('done', check.checked);
       });
 
@@ -1388,7 +1415,7 @@ function renderCurriculum(subjectId){
 
       const startBtn = document.createElement('button');
       startBtn.className = 'lesson-start';
-      startBtn.textContent = 'Boshlash';
+      startBtn.textContent = t('lesson_start_btn');
       startBtn.addEventListener('click', () => startLesson(subjectId, idx+1, lessonTitle));
 
       row.appendChild(check);
@@ -1433,9 +1460,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -1839,6 +1866,7 @@ function applyLanguage(lang){
     document.getElementById('chat-desc').textContent = subjectDesc(currentSubject);
   }
   if(sb && currentUser){ refreshProfile(); } else { updateUsageBanner(null); }
+  if(currentSubject){ renderCurriculum(currentSubject.id); }
 }
 
 document.getElementById('lang-select').addEventListener('change', (e) => applyLanguage(e.target.value));
