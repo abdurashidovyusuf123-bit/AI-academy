@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ai-academy-ai-academy6.vercel.app/sitemap.xml
