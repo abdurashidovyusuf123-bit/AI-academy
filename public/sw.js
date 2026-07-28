@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-academy-v1';
+const CACHE_NAME = 'ai-academy-v2';
 const CORE_ASSETS = ['/', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -21,6 +21,16 @@ self.addEventListener('fetch', (event) => {
   // Faqat GET so'rovlarini keshlaymiz; API so'rovlari doim tarmoqdan olinadi
   if (event.request.method !== 'GET' || event.request.url.includes('/api/')) return;
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
-});
+      fetch(event.request)
+        .then((response) => {
+          const responseClone = response.clone();
+
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+  });
