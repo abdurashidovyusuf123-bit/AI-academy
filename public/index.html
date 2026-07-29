@@ -381,6 +381,17 @@
   [dir="rtl"] .composer{ flex-direction: row-reverse; }
   [dir="rtl"] .msg.user{ align-self: flex-start; }
   [dir="rtl"] .msg.assistant{ align-self: flex-end; }
+  .module-locked .module-head{ cursor: default; opacity: 0.5; }
+  .module-locked .module-head:hover{ background: transparent; }
+  .lesson-start:disabled{ opacity: 0.35; cursor: not-allowed; text-decoration: none; }
+  .review-item{
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .review-item .rq{ font-size: 13px; font-weight:600; margin-bottom:6px; }
+  .review-item .ryour{ font-size: 12.5px; color: #ff8f8f; margin-bottom:3px; }
+  .review-item .rcorrect{ font-size: 12.5px; color: var(--biology); margin-bottom:6px; }
+  .review-item .rexplain{ font-size: 12.5px; color: var(--text-dim); line-height:1.5; }
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0B0E1A">
@@ -482,14 +493,18 @@
     <div class="level-quiz-card open" id="level-quiz-card">
       <div class="level-quiz-head">
         <div class="level-quiz-title" id="level-quiz-title">Daraja aniqlash testi</div>
-        <button class="modal-close" id="level-quiz-close" style="position:static;">&times;</button>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span id="exam-timer" style="display:none; font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14px; color: var(--accent);"></span>
+          <button class="modal-close" id="level-quiz-close" style="position:static;">&times;</button>
+        </div>
       </div>
       <div class="level-loading" id="level-loading">Savollar tayyorlanmoqda...</div>
       <div id="level-quiz-body"></div>
       <button class="modal-primary-btn" id="level-quiz-submit" style="display:none; margin-top:10px;">Yakunlash</button>
       <div class="level-result" id="level-result">
         <div class="big" id="level-result-title"></div>
-        <div id="level-result-detail" style="color:var(--text-dim); font-size:13px;"></div>
+        <div id="level-result-detail" style="color:var(--text-dim); font-size:13px; margin-bottom:14px;"></div>
+        <div id="level-review" style="text-align:left;"></div>
       </div>
     </div>
   </section>
@@ -1378,14 +1393,19 @@ async function renderCurriculum(subjectId){
   }
 
   body.innerHTML = '';
+  const unlockedModule = getUnlockedModule(subjectId);
   let lessonIndex = 0;
   modules.forEach((mod, mIdx) => {
+    const moduleNum = mIdx + 1;
+    const isLocked = moduleNum > unlockedModule;
     const modDiv = document.createElement('div');
-    modDiv.className = 'module';
+    modDiv.className = 'module' + (isLocked ? ' module-locked' : '');
     const head = document.createElement('div');
     head.className = 'module-head';
-    head.innerHTML = '<span class="module-title">' + (mIdx+1) + '. ' + mod.module + '</span><span class="module-caret">▸</span>';
-    head.addEventListener('click', () => { modDiv.classList.toggle('open'); });
+    head.innerHTML = '<span class="module-title">' + (isLocked ? '\ud83d\udd12 ' : '') + moduleNum + '. ' + mod.module + '</span><span class="module-caret">▸</span>';
+    if(!isLocked){
+      head.addEventListener('click', () => { modDiv.classList.toggle('open'); });
+    }
 
     const lessonsWrap = document.createElement('div');
     lessonsWrap.className = 'module-lessons';
@@ -1400,6 +1420,7 @@ async function renderCurriculum(subjectId){
       check.type = 'checkbox';
       check.className = 'lesson-check';
       check.checked = done.includes(idx);
+      check.disabled = isLocked;
       check.addEventListener('change', () => {
         let d = getProgress(subjectId);
         if(check.checked){ if(!d.includes(idx)) d.push(idx); }
@@ -1416,6 +1437,7 @@ async function renderCurriculum(subjectId){
       const startBtn = document.createElement('button');
       startBtn.className = 'lesson-start';
       startBtn.textContent = t('lesson_start_btn');
+      startBtn.disabled = isLocked;
       startBtn.addEventListener('click', () => startLesson(subjectId, idx+1, lessonTitle));
 
       row.appendChild(check);
@@ -1423,6 +1445,19 @@ async function renderCurriculum(subjectId){
       row.appendChild(startBtn);
       lessonsWrap.appendChild(row);
     });
+
+    if(!isLocked && moduleNum < 7){
+      const examRow = document.createElement('div');
+      examRow.style.padding = '12px 4px';
+      examRow.style.borderTop = '1px dashed var(--line)';
+      examRow.style.marginTop = '6px';
+      const examBtn = document.createElement('button');
+      examBtn.className = 'level-btn';
+      examBtn.textContent = (moduleNum + 1) + '-modulni ochish uchun imtihon';
+      examBtn.addEventListener('click', () => startModuleExam(subjectId, moduleNum));
+      examRow.appendChild(examBtn);
+      lessonsWrap.appendChild(examRow);
+    }
 
     modDiv.appendChild(head);
     modDiv.appendChild(lessonsWrap);
@@ -1452,7 +1487,7 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
     }
   }
 
-  const prompt = lessonNumber + '-dars: "' + lessonTitle + '" mavzusini menga boshidan, sodda tilda, misollar bilan tushuntiring. Oxirida kichik amaliy mashq bering.';
+  const prompt = lessonNumber + '-dars: "' + lessonTitle + '" mavzusini menga o\'rgating. Quyidagi tuzilishda bering: 1) Mavzuning aniq ta\'rifi/tushuntirishi (sodda tilda, boshidan), 2) Kamida 2-3 ta aniq misol, 3) O\'quvchilar ko\'p qiladigan xatolar yoki chalkashtiradigan jihatlar, 4) Oxirida shu mavzu bo\'yicha 1 ta amaliy mashq (javobini keyin so\'rasam beraman deb yozing).';
   inputEl.value = prompt;
   document.querySelector('.chat-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   sendMessage();
@@ -1460,9 +1495,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -1687,6 +1722,19 @@ async function callAI(systemPrompt, userText){
 
 // ---- Daraja aniqlash testi (placement test) ----
 let currentLevelQuiz = null;
+let quizMode = 'level';
+let examModuleIdx = null;
+
+function getUnlockedModule(subjectId){
+  const raw = localStorage.getItem('aiacademy_unlocked_' + subjectId);
+  return raw ? parseInt(raw, 10) : 1;
+}
+function setUnlockedModule(subjectId, moduleNum){
+  const current = getUnlockedModule(subjectId);
+  if(moduleNum > current){
+    localStorage.setItem('aiacademy_unlocked_' + subjectId, String(moduleNum));
+  }
+}
 
 document.getElementById('level-test-btn').addEventListener('click', () => {
   if(!currentSubject) return;
@@ -1697,6 +1745,7 @@ document.getElementById('level-quiz-close').addEventListener('click', () => {
 });
 
 async function startLevelTest(subjectId){
+  quizMode = 'level';
   const subject = SUBJECTS.find(s => s.id === subjectId);
   const section = document.getElementById('level-quiz-section');
   const card = document.getElementById('level-quiz-card');
@@ -1747,6 +1796,10 @@ async function startLevelTest(subjectId){
 }
 
 document.getElementById('level-quiz-submit').addEventListener('click', () => {
+  if(quizMode === 'exam'){
+    handleExamSubmit();
+    return;
+  }
   if(!currentLevelQuiz) return;
   const { subjectId, questions } = currentLevelQuiz;
   let correct = 0;
@@ -1761,6 +1814,7 @@ document.getElementById('level-quiz-submit').addEventListener('click', () => {
   else { levelLabel = 'Yuqori'; recommendedModule = 6; }
 
   localStorage.setItem('aiacademy_level_' + subjectId, JSON.stringify({ levelLabel, recommendedModule, correct }));
+  setUnlockedModule(subjectId, recommendedModule);
 
   document.getElementById('level-quiz-body').innerHTML = '';
   document.getElementById('level-quiz-submit').style.display = 'none';
@@ -1781,6 +1835,174 @@ document.getElementById('level-quiz-submit').addEventListener('click', () => {
   }
 });
 
+// ---- Modul imtihoni (module exam — keyingi modulni ochish uchun) ----
+let examTimerInterval = null;
+let examTimeLeft = 0;
+
+function stopExamTimer(){
+  if(examTimerInterval){ clearInterval(examTimerInterval); examTimerInterval = null; }
+  document.getElementById('exam-timer').style.display = 'none';
+}
+
+function startExamTimer(totalSeconds){
+  examTimeLeft = totalSeconds;
+  const timerEl = document.getElementById('exam-timer');
+  timerEl.style.display = 'inline';
+  const render = () => {
+    const m = Math.floor(examTimeLeft / 60);
+    const s = examTimeLeft % 60;
+    timerEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+  };
+  render();
+  examTimerInterval = setInterval(() => {
+    examTimeLeft--;
+    render();
+    if(examTimeLeft <= 0){
+      stopExamTimer();
+      handleExamSubmit();
+    }
+  }, 1000);
+}
+
+async function startModuleExam(subjectId, moduleIdx){
+  quizMode = 'exam';
+  examModuleIdx = moduleIdx;
+  const subject = SUBJECTS.find(s => s.id === subjectId);
+  const mod = CURRICULA[subjectId][moduleIdx - 1];
+
+  const section = document.getElementById('level-quiz-section');
+  const loading = document.getElementById('level-loading');
+  const body = document.getElementById('level-quiz-body');
+  const submitBtn = document.getElementById('level-quiz-submit');
+  const result = document.getElementById('level-result');
+
+  stopExamTimer();
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior:'smooth', block:'start' });
+  document.getElementById('level-quiz-title').textContent = moduleIdx + '-modul imtihoni: ' + mod.module + ' (30 savol, 45 daqiqa)';
+  loading.classList.add('open');
+  body.innerHTML = '';
+  submitBtn.style.display = 'none';
+  result.classList.remove('open');
+  document.getElementById('level-review').innerHTML = '';
+
+  const sys = withLanguage('Sen ta\'lim platformasi uchun test tuzuvchisan. Faqat berilgan JSON formatda javob ber, boshqa hech qanday matn, izoh yoki markdown belgilarisiz.');
+  const userPrompt = subject.label + ' fanining "' + mod.module + '" moduli bo\'yicha 30 ta test savoli tuzib ber. Mavzular: ' + mod.lessons.join(', ') + '. Savollar qiyinlik darajasi bo\'yicha aniq bosqichlarga bo\'lingan bo\'lsin: 1-5-savollar OSON, 6-10-savollar O\'RTA, 11-15-savollar QIYIN, 16-20-savollar JUDA QIYIN, 21-30-savollar ENG QIYIN (chuqur bilim va tahlil talab qiladigan). Har bir savolda 4 ta variant bo\'lsin, faqat bittasi to\'g\'ri. Javobni FAQAT quyidagi JSON formatda ber, boshqa hech narsa yozma: {"questions":[{"q":"savol matni","options":["A","B","C","D"],"correct":0}]}. Massivda aynan 30 ta element bo\'lsin.';
+
+  try{
+    const res = await callAI(sys, userPrompt);
+    let text = res.trim();
+    text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    text = text.slice(firstBrace, lastBrace + 1);
+    const parsed = JSON.parse(text);
+    currentLevelQuiz = { subjectId, questions: parsed.questions };
+
+    loading.classList.remove('open');
+    body.innerHTML = '';
+    parsed.questions.forEach((q, i) => {
+      const qDiv = document.createElement('div');
+      qDiv.className = 'level-q';
+      let optsHtml = '';
+      q.options.forEach((opt, oi) => {
+        optsHtml += '<label class="level-q-opt"><input type="radio" name="lq-' + i + '" value="' + oi + '"> ' + opt + '</label>';
+      });
+      qDiv.innerHTML = '<div class="level-q-text">' + (i+1) + '. ' + q.q + '</div>' + optsHtml;
+      body.appendChild(qDiv);
+    });
+    submitBtn.style.display = 'block';
+    startExamTimer(45 * 60);
+  }catch(err){
+    loading.classList.remove('open');
+    body.innerHTML = '<div class="modal-msg error">Imtihon tuzishda xatolik yuz berdi. Qayta urinib ko\'ring.</div>';
+    console.error(err);
+  }
+}
+
+async function handleExamSubmit(){
+  if(!currentLevelQuiz) return;
+  stopExamTimer();
+  const { subjectId, questions } = currentLevelQuiz;
+  let correct = 0;
+  const wrongOnes = [];
+  questions.forEach((q, i) => {
+    const picked = document.querySelector('input[name="lq-' + i + '"]:checked');
+    const pickedIdx = picked ? parseInt(picked.value, 10) : null;
+    if(pickedIdx === q.correct){
+      correct++;
+    } else {
+      wrongOnes.push({
+        q: q.q,
+        options: q.options,
+        yourAnswer: pickedIdx !== null ? q.options[pickedIdx] : '(javob berilmagan)',
+        correctAnswer: q.options[q.correct]
+      });
+    }
+  });
+
+  const passed = correct >= 21;
+  document.getElementById('level-quiz-body').innerHTML = '';
+  document.getElementById('level-quiz-submit').style.display = 'none';
+  const result = document.getElementById('level-result');
+  result.classList.add('open');
+
+  if(passed){
+    setUnlockedModule(subjectId, examModuleIdx + 1);
+    document.getElementById('level-result-title').textContent = '✅ Imtihon topshirildi! (' + correct + '/30)';
+    document.getElementById('level-result-detail').textContent = (examModuleIdx + 1) + '-modul endi ochildi.';
+  } else {
+    document.getElementById('level-result-title').textContent = '❌ O\'tolmadingiz (' + correct + '/30)';
+    document.getElementById('level-result-detail').textContent = 'Kamida 21/30 to\'g\'ri kerak. Quyida xato javoblaringiz tahlili bilan berilgan — ko\'rib chiqib, qayta urining.';
+  }
+
+  const reviewEl = document.getElementById('level-review');
+  reviewEl.innerHTML = '';
+  if(wrongOnes.length > 0){
+    reviewEl.innerHTML = '<div class="hint" style="text-align:center; padding:14px 0;">⏳ Tahlil tayyorlanmoqda...</div>';
+    try{
+      const sys = withLanguage('Sen ta\'lim platformasi uchun tushuntiruvchi ekspertsan. Faqat berilgan JSON formatda javob ber, boshqa hech qanday matn yozma.');
+      const userPrompt = 'Quyidagi savollarda talaba xato javob bergan. Har biri uchun, nega talabaning javobi noto\'g\'ri va nega to\'g\'ri javob to\'g\'ri ekanini 1-2 jumlada tushuntir. JSON massiv qaytar: {"explanations":["...", "..."]} — aynan ' + wrongOnes.length + ' ta element, savollar tartibida. Savollar: ' + JSON.stringify(wrongOnes.map(w => ({q: w.q, yourAnswer: w.yourAnswer, correctAnswer: w.correctAnswer})));
+      const res = await callAI(sys, userPrompt);
+      let text = res.trim().replace(/```json/gi, '').replace(/```/g, '').trim();
+      const first = text.indexOf('{');
+      const last = text.lastIndexOf('}');
+      text = text.slice(first, last + 1);
+      const parsed = JSON.parse(text);
+      const explanations = (parsed.explanations && parsed.explanations.length === wrongOnes.length)
+        ? parsed.explanations
+        : wrongOnes.map(() => '');
+
+      reviewEl.innerHTML = '';
+      wrongOnes.forEach((w, i) => {
+        const item = document.createElement('div');
+        item.className = 'review-item';
+        item.innerHTML =
+          '<div class="rq">' + w.q + '</div>' +
+          '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
+          '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>' +
+          '<div class="rexplain">' + (explanations[i] || '') + '</div>';
+        reviewEl.appendChild(item);
+      });
+    }catch(err){
+      reviewEl.innerHTML = '';
+      wrongOnes.forEach((w) => {
+        const item = document.createElement('div');
+        item.className = 'review-item';
+        item.innerHTML =
+          '<div class="rq">' + w.q + '</div>' +
+          '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
+          '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>';
+        reviewEl.appendChild(item);
+      });
+      console.error(err);
+    }
+  }
+
+  if(currentSubject && currentSubject.id === subjectId){
+    renderCurriculum(subjectId);
+  }
+}
 
 // ---- Til tanlash (i18n) ----
 let currentLang = localStorage.getItem('aiacademy_lang') || 'uz';
