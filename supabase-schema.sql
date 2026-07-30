@@ -48,7 +48,7 @@ after insert on auth.users
 for each row
 execute procedure handle_new_user();
 
-create or replace function check_and_increment_lesson(daily_limit int default 3)
+create or replace function check_and_increment_lesson(daily_limit int default 5)
 returns json as $$
 declare
   prof profiles%rowtype;
