@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { system, messages } = req.body || {};
+  const { system, messages, image } = req.body || {};
 
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: 'Server sozlanmagan: GEMINI_API_KEY topilmadi.' });
@@ -11,10 +11,17 @@ export default async function handler(req, res) {
 
   try {
     // Bizning xabarlar formatini ({role, content}) Gemini formatiga o'giramiz
-    const contents = (messages || []).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
+    const contents = (messages || []).map((m, idx) => {
+      const parts = [{ text: m.content }];
+      const isLast = idx === (messages.length - 1);
+      if (isLast && m.role === 'user' && image && image.data) {
+        parts.push({ inlineData: { mimeType: image.mimeType || 'image/jpeg', data: image.data } });
+      }
+      return {
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts
+      };
+    });
 
     const model = 'gemini-3.5-flash-lite';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
