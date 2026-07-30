@@ -7,16 +7,21 @@ create table if not exists profiles (
   stripe_customer_id text,
   lessons_used_today int not null default 0,
   last_used_date date not null default current_date,
+  points int not null default 0,
+  nickname text,
   created_at timestamptz not null default now()
 );
 
 alter table profiles enable row level security;
 
-drop policy if exists "Foydalanuvchi faqat o'z profilini ko'radi" on profiles;
-
 create policy "Foydalanuvchi faqat o'z profilini ko'radi"
   on profiles for select
   using (auth.uid() = user_id);
+
+create policy "Foydalanuvchi faqat o'z taxallusini o'zgartira oladi"
+  on profiles for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 -- Yangi foydalanuvchi ro'yxatdan o'tganda avtomatik profil qatori yaratish
 create or replace function handle_new_user()
@@ -69,3 +74,22 @@ begin
   );
 end;
 $$ language plpgsql security definer;
+
+-- Imtihondan o'tganda ball qo'shish uchun
+create or replace function award_exam_points(amount int)
+returns void as $$
+begin
+  update profiles set points = points + amount where user_id = auth.uid();
+end;
+$$ language plpgsql security definer;
+
+-- Reyting jadvali uchun: faqat taxallus va ball ko'rinadigan ochiq ko'rinish (view).
+-- Bu boshqa maxfiy ustunlarni (masalan is_vip, stripe_customer_id) ochiq qilmaydi.
+create or replace view public_leaderboard as
+  select coalesce(nickname, 'Anonim') as nickname, points
+  from profiles
+  where points > 0
+  order by points desc
+  limit 50;
+
+grant select on public_leaderboard to anon, authenticated;
