@@ -1542,7 +1542,7 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
     awardPoints(5);
   }
 
-  const prompt = lessonNumber + '-dars: "' + lessonTitle + '" mavzusini menga o\'rgating. Quyidagi tuzilishda bering: 1) Mavzuning aniq ta\'rifi/tushuntirishi (sodda tilda, boshidan), 2) Kamida 2-3 ta aniq misol, 3) O\'quvchilar ko\'p qiladigan xatolar yoki chalkashtiradigan jihatlar, 4) Oxirida shu mavzu bo\'yicha 1 ta amaliy mashq (javobini keyin so\'rasam beraman deb yozing).';
+  const prompt = lessonNumber + '-dars: "' + lessonTitle + '" mavzusini menga chuqur va puxta o\'rgating — bu keyinchalik qiyin imtihonda so\'raladigan darajada bo\'lishi kerak, shuning uchun yuzaki tushuntirmang. Quyidagi tuzilishda bering: 1) Mavzuning to\'liq va aniq ta\'rifi/tushuntirishi (boshidan, lekin chuqur), 2) Kamida 3-4 ta aniq misol, oddiy-dan murakkabgacha, 3) Nozik jihatlar, chalkashtiradigan holatlar va o\'quvchilar ko\'p qiladigan xatolar, 4) Mavzuning chuqurroq/ilg\'or qirralari (nafaqat asoslar), 5) Oxirida shu mavzu bo\'yicha 1 ta amaliy, imtihon darajasidagi mashq (javobini keyin so\'rasam beraman deb yozing).';
   inputEl.value = prompt;
   document.querySelector('.chat-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   sendMessage();
@@ -1550,9 +1550,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -1851,7 +1851,7 @@ async function startLevelTest(subjectId){
   }
 }
 
-document.getElementById('level-quiz-submit').addEventListener('click', () => {
+document.getElementById('level-quiz-submit').addEventListener('click', async () => {
   if(quizMode === 'exam'){
     handleExamSubmit();
     return;
@@ -1859,9 +1859,20 @@ document.getElementById('level-quiz-submit').addEventListener('click', () => {
   if(!currentLevelQuiz) return;
   const { subjectId, questions } = currentLevelQuiz;
   let correct = 0;
+  const wrongOnes = [];
   questions.forEach((q, i) => {
     const picked = document.querySelector('input[name="lq-' + i + '"]:checked');
-    if(picked && parseInt(picked.value, 10) === q.correct) correct++;
+    const pickedIdx = picked ? parseInt(picked.value, 10) : null;
+    if(pickedIdx === q.correct){
+      correct++;
+    } else {
+      wrongOnes.push({
+        q: q.q,
+        options: q.options,
+        yourAnswer: pickedIdx !== null ? q.options[pickedIdx] : '(javob berilmagan)',
+        correctAnswer: q.options[q.correct]
+      });
+    }
   });
 
   let levelLabel, recommendedModule;
@@ -1878,6 +1889,8 @@ document.getElementById('level-quiz-submit').addEventListener('click', () => {
   result.classList.add('open');
   document.getElementById('level-result-title').textContent = 'Darajangiz: ' + levelLabel + ' (' + correct + '/25 to\'g\'ri)';
   document.getElementById('level-result-detail').textContent = 'Tavsiya: ' + recommendedModule + '-moduldan boshlang. Darslar ro\'yxatida shu modul avtomatik ochiladi.';
+
+  await showAnswerReview(wrongOnes);
 
   if(currentSubject && currentSubject.id === subjectId){
     renderCurriculum(subjectId);
@@ -2022,49 +2035,55 @@ async function handleExamSubmit(){
 
   const reviewEl = document.getElementById('level-review');
   reviewEl.innerHTML = '';
-  if(wrongOnes.length > 0){
-    reviewEl.innerHTML = '<div class="hint" style="text-align:center; padding:14px 0;">⏳ Tahlil tayyorlanmoqda...</div>';
-    try{
-      const sys = withLanguage('Sen ta\'lim platformasi uchun tushuntiruvchi ekspertsan. Faqat berilgan JSON formatda javob ber, boshqa hech qanday matn yozma.');
-      const userPrompt = 'Quyidagi savollarda talaba xato javob bergan. Har biri uchun, nega talabaning javobi noto\'g\'ri va nega to\'g\'ri javob to\'g\'ri ekanini 1-2 jumlada tushuntir. JSON massiv qaytar: {"explanations":["...", "..."]} — aynan ' + wrongOnes.length + ' ta element, savollar tartibida. Savollar: ' + JSON.stringify(wrongOnes.map(w => ({q: w.q, yourAnswer: w.yourAnswer, correctAnswer: w.correctAnswer})));
-      const res = await callAI(sys, userPrompt);
-      let text = res.trim().replace(/```json/gi, '').replace(/```/g, '').trim();
-      const first = text.indexOf('{');
-      const last = text.lastIndexOf('}');
-      text = text.slice(first, last + 1);
-      const parsed = JSON.parse(text);
-      const explanations = (parsed.explanations && parsed.explanations.length === wrongOnes.length)
-        ? parsed.explanations
-        : wrongOnes.map(() => '');
-
-      reviewEl.innerHTML = '';
-      wrongOnes.forEach((w, i) => {
-        const item = document.createElement('div');
-        item.className = 'review-item';
-        item.innerHTML =
-          '<div class="rq">' + w.q + '</div>' +
-          '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
-          '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>' +
-          '<div class="rexplain">' + (explanations[i] || '') + '</div>';
-        reviewEl.appendChild(item);
-      });
-    }catch(err){
-      reviewEl.innerHTML = '';
-      wrongOnes.forEach((w) => {
-        const item = document.createElement('div');
-        item.className = 'review-item';
-        item.innerHTML =
-          '<div class="rq">' + w.q + '</div>' +
-          '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
-          '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>';
-        reviewEl.appendChild(item);
-      });
-      console.error(err);
-    }
-  }
+  await showAnswerReview(wrongOnes);
 
   if(currentSubject && currentSubject.id === subjectId){
     renderCurriculum(subjectId);
+  }
+}
+
+async function showAnswerReview(wrongOnes){
+  const reviewEl = document.getElementById('level-review');
+  reviewEl.innerHTML = '';
+  if(wrongOnes.length === 0) return;
+
+  reviewEl.innerHTML = '<div class="hint" style="text-align:center; padding:14px 0;">⏳ Tahlil tayyorlanmoqda...</div>';
+  try{
+    const sys = withLanguage('Sen ta\'lim platformasi uchun tushuntiruvchi ekspertsan. Faqat berilgan JSON formatda javob ber, boshqa hech qanday matn yozma.');
+    const userPrompt = 'Quyidagi savollarda talaba xato javob bergan. Har biri uchun, nega talabaning javobi noto\'g\'ri va nega to\'g\'ri javob to\'g\'ri ekanini 1-2 jumlada tushuntir. JSON massiv qaytar: {"explanations":["...", "..."]} — aynan ' + wrongOnes.length + ' ta element, savollar tartibida. Savollar: ' + JSON.stringify(wrongOnes.map(w => ({q: w.q, yourAnswer: w.yourAnswer, correctAnswer: w.correctAnswer})));
+    const res = await callAI(sys, userPrompt);
+    let text = res.trim().replace(/```json/gi, '').replace(/```/g, '').trim();
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    text = text.slice(first, last + 1);
+    const parsed = JSON.parse(text);
+    const explanations = (parsed.explanations && parsed.explanations.length === wrongOnes.length)
+      ? parsed.explanations
+      : wrongOnes.map(() => '');
+
+    reviewEl.innerHTML = '';
+    wrongOnes.forEach((w, i) => {
+      const item = document.createElement('div');
+      item.className = 'review-item';
+      item.innerHTML =
+        '<div class="rq">' + w.q + '</div>' +
+        '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
+        '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>' +
+        '<div class="rexplain">' + (explanations[i] || '') + '</div>';
+      reviewEl.appendChild(item);
+    });
+  }catch(err){
+    reviewEl.innerHTML = '';
+    wrongOnes.forEach((w) => {
+      const item = document.createElement('div');
+      item.className = 'review-item';
+      item.innerHTML =
+        '<div class="rq">' + w.q + '</div>' +
+        '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
+        '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>';
+      reviewEl.appendChild(item);
+    });
+    console.error(err);
   }
 }
 
@@ -2158,7 +2177,7 @@ function applyLanguage(lang){
 document.getElementById('lang-select').addEventListener('change', (e) => applyLanguage(e.target.value));
 
 function withLanguage(systemPrompt){
-  return systemPrompt + ' Always respond in ' + LANG_ENGLISH_NAMES[currentLang] + '. If the site language is Arabic, still use standard modern Arabic.';
+  return systemPrompt + ' Always respond in ' + LANG_ENGLISH_NAMES[currentLang] + '. If the site language is Arabic, still use standard modern Arabic. IMPORTANT: this is a plain-text chat that cannot render LaTeX or markdown math. NEVER use LaTeX syntax (no $...$, no \\frac, \\sum, \\lim, \\int, \\sqrt, ^{}, _{} etc.). Write all mathematical expressions in plain, readable text using normal keyboard symbols and words instead \u2014 for example write "lim as x approaches 0 of ln(cos x) / x^2" or "the sum from n=1 to infinity of 1/(n(n+1)(n+2))", and use symbols like x^2, sqrt(x), \u00d7, \u00f7, \u2192, \u221e, \u03c0 where natural.';
 }
 
 applyLanguage(currentLang);
