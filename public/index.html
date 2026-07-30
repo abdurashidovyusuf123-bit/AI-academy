@@ -405,6 +405,22 @@
     #certificate-content{ position:fixed; top:0; left:0; width:100%; }
     #certificate-print-btn, .modal-close{ display:none !important; }
   }
+  .img-attach-btn{
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    width: 46px; height: 46px; font-size: 18px; cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .img-attach-btn:hover:not(:disabled){ border-color: var(--accent); }
+  .img-attach-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .image-preview-row{
+    display:flex; align-items:center; gap:10px; padding: 8px 14px;
+    background: var(--surface-2); border-top: 1px solid var(--line);
+  }
+  .image-preview-row img{ height: 44px; border-radius: 8px; border: 1px solid var(--line); }
+  .image-preview-row button{
+    background:none; border:none; color: var(--text-dim); font-size: 18px; cursor:pointer;
+  }
+  .msg img.chat-img{ max-width: 220px; border-radius: 10px; display:block; margin-top:6px; }
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0B0E1A">
@@ -574,7 +590,13 @@
       <div class="messages" id="messages">
         <div class="msg system-empty">Fanni tanlashingiz bilan AI o'qituvchi shu yerda javob beradi.</div>
       </div>
+      <div class="image-preview-row" id="image-preview-row" style="display:none;">
+        <img id="image-preview-thumb" alt="preview">
+        <button id="image-preview-remove" type="button">&times;</button>
+      </div>
       <div class="composer">
+        <input type="file" id="image-input" accept="image/*" style="display:none;">
+        <button id="image-attach-btn" class="img-attach-btn" disabled title="Rasm biriktirish">📷</button>
         <textarea id="input" placeholder="Savolingizni yozing..." disabled></textarea>
         <button id="send" disabled>Yuborish</button>
       </div>
@@ -1324,6 +1346,7 @@ function selectSubject(id){
   input.disabled = false;
   input.placeholder = currentSubject.label + ' bo\'yicha savolingizni yozing...';
   document.getElementById('send').disabled = false;
+  document.getElementById('image-attach-btn').disabled = false;
   input.focus();
   renderCurriculum(currentSubject.id);
 }
@@ -1332,10 +1355,16 @@ const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('send');
 
-function addMessage(role, text){
+function addMessage(role, text, imageDataUrl){
   const div = document.createElement('div');
   div.className = 'msg ' + role;
   div.textContent = text;
+  if(imageDataUrl){
+    const img = document.createElement('img');
+    img.className = 'chat-img';
+    img.src = imageDataUrl;
+    div.appendChild(img);
+  }
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return div;
@@ -1350,16 +1379,63 @@ function addTyping(){
   return div;
 }
 
+// ---- Rasm biriktirish ----
+let pendingImage = null; // { mimeType, data (base64, no prefix), dataUrl }
+
+document.getElementById('image-attach-btn').addEventListener('click', () => {
+  document.getElementById('image-input').click();
+});
+
+document.getElementById('image-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    const base64 = dataUrl.split(',')[1];
+    pendingImage = { mimeType: file.type, data: base64, dataUrl };
+    document.getElementById('image-preview-thumb').src = dataUrl;
+    document.getElementById('image-preview-row').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+document.getElementById('image-preview-remove').addEventListener('click', () => {
+  pendingImage = null;
+  document.getElementById('image-preview-row').style.display = 'none';
+});
+
 async function sendMessage(){
   const text = inputEl.value.trim();
-  if(!text || !currentSubject) return;
+  const imageToSend = pendingImage;
+  if(!text && !imageToSend) return;
+  if(!currentSubject) return;
 
-  addMessage('user', text);
-  history.push({ role:'user', content:text });
+  if(imageToSend && sb){
+    if(!currentUser){
+      openAuth();
+      return;
+    }
+    const { data, error } = await sb.rpc('check_and_increment_image', { daily_limit: 5 });
+    if(error){
+      alert('Xatolik: ' + error.message);
+      return;
+    }
+    if(!data.allowed){
+      document.getElementById('upgrade-overlay').classList.add('open');
+      return;
+    }
+  }
+
+  addMessage('user', text || '(rasm yuborildi)', imageToSend ? imageToSend.dataUrl : null);
+  history.push({ role:'user', content: text || 'Ushbu rasmni tushuntiring.' });
   inputEl.value = '';
   inputEl.style.height = '46px';
   sendBtn.disabled = true;
   inputEl.disabled = true;
+  pendingImage = null;
+  document.getElementById('image-preview-row').style.display = 'none';
 
   const typingEl = addTyping();
 
@@ -1369,7 +1445,8 @@ async function sendMessage(){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         system: withLanguage(currentSubject.system),
-        messages: history
+        messages: history,
+        image: imageToSend ? { mimeType: imageToSend.mimeType, data: imageToSend.data } : undefined
       })
     });
     const data = await response.json();
@@ -1550,9 +1627,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
