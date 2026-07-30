@@ -392,6 +392,19 @@
   .review-item .ryour{ font-size: 12.5px; color: #ff8f8f; margin-bottom:3px; }
   .review-item .rcorrect{ font-size: 12.5px; color: var(--biology); margin-bottom:6px; }
   .review-item .rexplain{ font-size: 12.5px; color: var(--text-dim); line-height:1.5; }
+  .lb-row{ display:flex; align-items:center; justify-content:space-between; padding:9px 6px; border-bottom:1px solid var(--line); font-size:13px; }
+  .lb-row:last-child{ border-bottom:none; }
+  .lb-rank{ color: var(--text-dim); width:22px; }
+  .lb-name{ flex:1; }
+  .lb-points{ color: var(--accent); font-weight:700; }
+  .progress-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-bottom:1px solid var(--line); font-size:13px; }
+  .progress-row:last-child{ border-bottom:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    #certificate-content, #certificate-content *{ visibility:visible; }
+    #certificate-content{ position:fixed; top:0; left:0; width:100%; }
+    #certificate-print-btn, .modal-close{ display:none !important; }
+  }
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0B0E1A">
@@ -415,6 +428,9 @@
       <option value="ar">العربية</option>
     </select>
     <span class="nav-link" id="install-link" style="display:none;">Ilovani o'rnatish</span>
+    <span class="nav-link" id="streak-badge" style="display:none;"></span>
+    <span class="nav-link" id="leaderboard-link">🏆</span>
+    <span class="nav-link" id="progress-link" style="display:none;">📊</span>
     <span class="nav-link" id="contact-link">Aloqa</span>
     <div id="auth-area"><button class="auth-btn" id="auth-open-btn">Kirish</button></div>
   </div>
@@ -458,6 +474,42 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="leaderboard-overlay">
+  <div class="modal-card" style="max-width:440px;">
+    <button class="modal-close" id="leaderboard-close-btn">&times;</button>
+    <div class="modal-title">🏆 Reyting</div>
+    <div class="modal-sub">Eng ko'p ball to'plagan o'quvchilar</div>
+    <div id="leaderboard-body" style="max-height:340px; overflow-y:auto;"></div>
+    <div id="nickname-setup" style="display:none; margin-top:14px; border-top:1px solid var(--line); padding-top:14px;">
+      <div class="modal-sub" style="margin-bottom:8px;">Reytingda ko'rinadigan ismingizni tanlang:</div>
+      <input type="text" id="nickname-input" placeholder="Taxallusingiz">
+      <button class="modal-primary-btn" id="nickname-save-btn">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="progress-overlay">
+  <div class="modal-card" style="max-width:480px;">
+    <button class="modal-close" id="progress-close-btn">&times;</button>
+    <div class="modal-title">📊 Progress</div>
+    <div class="modal-sub">Ota-ona yoki o'qituvchi bilan ulashish uchun shu sahifani ko'rsating</div>
+    <div id="progress-body"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="certificate-overlay">
+  <div class="modal-card" style="max-width:600px;">
+    <button class="modal-close" id="certificate-close-btn">&times;</button>
+    <div id="certificate-content" style="text-align:center; padding:20px; border:2px solid var(--accent); border-radius:12px; background:#fff; color:#111;">
+      <div style="font-family:'Space Grotesk',sans-serif; font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:#888;">AI Academy</div>
+      <div style="font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700; margin:14px 0 6px;">Sertifikat</div>
+      <div style="font-size:13px; color:#555; margin-bottom:18px;" id="cert-body-text"></div>
+      <div style="font-size:11px; color:#999;" id="cert-date-text"></div>
+    </div>
+    <button class="modal-primary-btn" id="certificate-print-btn" style="margin-top:14px;">Chop etish / PDF saqlash</button>
+  </div>
+</div>
+
 <main>
   <section class="hero">
     <div class="eyebrow" id="hero-eyebrow">Bepul • Barcha fanlar • AI bilan</div>
@@ -483,6 +535,7 @@
         <div style="display:flex; align-items:center; gap:12px;">
           <button class="level-btn" id="level-test-btn">Darajangizni aniqlang</button>
           <div class="curriculum-progress" id="curriculum-progress">0/70 bajarildi</div>
+          <button class="level-btn" id="cert-btn" style="display:none;">🏆 Sertifikat</button>
         </div>
       </div>
       <div id="curriculum-body"></div>
@@ -1361,6 +1414,7 @@ async function renderCurriculum(subjectId){
 
   section.style.display = 'block';
   title.textContent = subjectLabel(subject) + ' (70)';
+  document.getElementById('cert-btn').style.display = isCertified(subjectId) ? 'inline-block' : 'none';
 
   const done = getProgress(subjectId);
   progressLabel.textContent = done.length + '/70 ' + t('curriculum_bajarildi');
@@ -1446,14 +1500,14 @@ async function renderCurriculum(subjectId){
       lessonsWrap.appendChild(row);
     });
 
-    if(!isLocked && moduleNum < 7){
+    if(!isLocked && !(moduleNum === 7 && isCertified(subjectId))){
       const examRow = document.createElement('div');
       examRow.style.padding = '12px 4px';
       examRow.style.borderTop = '1px dashed var(--line)';
       examRow.style.marginTop = '6px';
       const examBtn = document.createElement('button');
       examBtn.className = 'level-btn';
-      examBtn.textContent = (moduleNum + 1) + '-modulni ochish uchun imtihon';
+      examBtn.textContent = moduleNum === 7 ? 'Yakuniy imtihon — sertifikat olish' : ((moduleNum + 1) + '-modulni ochish uchun imtihon');
       examBtn.addEventListener('click', () => startModuleExam(subjectId, moduleNum));
       examRow.appendChild(examBtn);
       lessonsWrap.appendChild(examRow);
@@ -1485,6 +1539,7 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
       document.getElementById('upgrade-overlay').classList.add('open');
       return;
     }
+    awardPoints(5);
   }
 
   const prompt = lessonNumber + '-dars: "' + lessonTitle + '" mavzusini menga o\'rgating. Quyidagi tuzilishda bering: 1) Mavzuning aniq ta\'rifi/tushuntirishi (sodda tilda, boshidan), 2) Kamida 2-3 ta aniq misol, 3) O\'quvchilar ko\'p qiladigan xatolar yoki chalkashtiradigan jihatlar, 4) Oxirida shu mavzu bo\'yicha 1 ta amaliy mashq (javobini keyin so\'rasam beraman deb yozing).';
@@ -1604,6 +1659,7 @@ function renderAuthArea(session){
     document.getElementById('auth-open-btn').addEventListener('click', openAuth);
     updateUsageBanner(null);
   }
+  document.getElementById('progress-link').style.display = currentUser ? 'inline' : 'none';
 }
 
 // ---- VIP to'lov (Stripe) ----
@@ -1763,7 +1819,7 @@ async function startLevelTest(subjectId){
   result.classList.remove('open');
 
   const sys = withLanguage('Sen ta\'lim platformasi uchun test tuzuvchisan. Faqat berilgan JSON formatda javob ber, boshqa hech qanday matn, izoh yoki markdown belgilarisiz.');
-  const userPrompt = subject.label + ' fanidan 25 ta test savoli tuzib ber. Savollar eng osonidan boshlab, asta-sekin qiyinlashib borsin (1-savol eng oson, 25-savol eng qiyin). Har bir savolda 4 ta variant bo\'lsin, faqat bittasi to\'g\'ri. Javobni FAQAT quyidagi JSON formatda ber, boshqa hech narsa yozma: {"questions":[{"q":"savol matni","options":["A","B","C","D"],"correct":0}]}. Massivda aynan 25 ta element bo\'lsin. ';
+  const userPrompt = subject.label + ' fanidan 25 ta QIYIN va chuqur bilim talab qiladigan test savoli tuzib ber. Bu oddiy emas, chinakam bilim darajasini sinovdan o\'tkazuvchi savollar bo\'lsin — yuzaki yoki juda oddiy savollardan qat\'iy saqlaning. Savollar 1-savoldan 25-savolgacha asta-sekin yanada qiyinlashib borsin (1-savol nisbatan oson, lekin baribir jiddiy, 25-savol juda qiyin, tahlil va chuqur tushunish talab qiladi). Har bir savolda 4 ta variant bo\'lsin, ular orasida chalg\'ituvchi (yaqin, lekin noto\'g\'ri) variantlar ham bo\'lsin, faqat bittasi to\'g\'ri. Javobni FAQAT quyidagi JSON formatda ber, boshqa hech narsa yozma: {"questions":[{"q":"savol matni","options":["A","B","C","D"],"correct":0}]}. Massivda aynan 25 ta element bo\'lsin.';
 
   try{
     const res = await callAI(sys, userPrompt);
@@ -1887,7 +1943,7 @@ async function startModuleExam(subjectId, moduleIdx){
   document.getElementById('level-review').innerHTML = '';
 
   const sys = withLanguage('Sen ta\'lim platformasi uchun test tuzuvchisan. Faqat berilgan JSON formatda javob ber, boshqa hech qanday matn, izoh yoki markdown belgilarisiz.');
-  const userPrompt = subject.label + ' fanining "' + mod.module + '" moduli bo\'yicha 30 ta test savoli tuzib ber. Mavzular: ' + mod.lessons.join(', ') + '. Savollar qiyinlik darajasi bo\'yicha aniq bosqichlarga bo\'lingan bo\'lsin: 1-5-savollar OSON, 6-10-savollar O\'RTA, 11-15-savollar QIYIN, 16-20-savollar JUDA QIYIN, 21-30-savollar ENG QIYIN (chuqur bilim va tahlil talab qiladigan). Har bir savolda 4 ta variant bo\'lsin, faqat bittasi to\'g\'ri. Javobni FAQAT quyidagi JSON formatda ber, boshqa hech narsa yozma: {"questions":[{"q":"savol matni","options":["A","B","C","D"],"correct":0}]}. Massivda aynan 30 ta element bo\'lsin.';
+  const userPrompt = subject.label + ' fanining "' + mod.module + '" moduli bo\'yicha 30 ta QIYIN, chuqur bilim va tahlil talab qiladigan test savoli tuzib ber. Bu chinakam bilim darajasini sinovdan o\'tkazuvchi savollar bo\'lsin, yuzaki yoki juda oddiy savollardan qat\'iy saqlaning. Mavzular: ' + mod.lessons.join(', ') + '. Savollar qiyinlik darajasi bo\'yicha aniq bosqichlarga bo\'lingan bo\'lsin (lekin har biri baribir jiddiy bo\'lsin): 1-5-savollar NISBATAN OSON, 6-10-savollar O\'RTA, 11-15-savollar QIYIN, 16-20-savollar JUDA QIYIN, 21-30-savollar ENG QIYIN (real hayotiy vaziyat yoki chuqur tahlil talab qiladigan). Har bir savolda 4 ta variant bo\'lsin, ular orasida chalg\'ituvchi (yaqin, lekin noto\'g\'ri) variantlar ham bo\'lsin, faqat bittasi to\'g\'ri. Javobni FAQAT quyidagi JSON formatda ber, boshqa hech narsa yozma: {"questions":[{"q":"savol matni","options":["A","B","C","D"],"correct":0}]}. Massivda aynan 30 ta element bo\'lsin.';
 
   try{
     const res = await callAI(sys, userPrompt);
@@ -1948,9 +2004,17 @@ async function handleExamSubmit(){
   result.classList.add('open');
 
   if(passed){
-    setUnlockedModule(subjectId, examModuleIdx + 1);
-    document.getElementById('level-result-title').textContent = '✅ Imtihon topshirildi! (' + correct + '/30)';
-    document.getElementById('level-result-detail').textContent = (examModuleIdx + 1) + '-modul endi ochildi.';
+    if(examModuleIdx === 7){
+      setCertified(subjectId);
+      awardPoints(100);
+      document.getElementById('level-result-title').textContent = '🏆 Tabriklaymiz! Kurs yakunlandi!';
+      document.getElementById('level-result-detail').textContent = 'Endi sertifikatingizni olishingiz mumkin.';
+    } else {
+      setUnlockedModule(subjectId, examModuleIdx + 1);
+      awardPoints(30);
+      document.getElementById('level-result-title').textContent = '✅ Imtihon topshirildi! (' + correct + '/30)';
+      document.getElementById('level-result-detail').textContent = (examModuleIdx + 1) + '-modul endi ochildi.';
+    }
   } else {
     document.getElementById('level-result-title').textContent = '❌ O\'tolmadingiz (' + correct + '/30)';
     document.getElementById('level-result-detail').textContent = 'Kamida 21/30 to\'g\'ri kerak. Quyida xato javoblaringiz tahlili bilan berilgan — ko\'rib chiqib, qayta urining.';
@@ -2098,6 +2162,137 @@ function withLanguage(systemPrompt){
 }
 
 applyLanguage(currentLang);
+updateStreak();
+
+// ---- Kunlik streak ----
+function updateStreak(){
+  const today = new Date().toISOString().slice(0,10);
+  let data;
+  try{ data = JSON.parse(localStorage.getItem('aiacademy_streak') || '{"count":0,"lastDate":null}'); }
+  catch(e){ data = {count:0, lastDate:null}; }
+  if(data.lastDate !== today){
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+    data.count = (data.lastDate === yesterday) ? data.count + 1 : 1;
+    data.lastDate = today;
+    localStorage.setItem('aiacademy_streak', JSON.stringify(data));
+  }
+  const badge = document.getElementById('streak-badge');
+  if(data.count > 0){
+    badge.style.display = 'inline';
+    badge.textContent = '🔥 ' + data.count;
+  }
+  return data.count;
+}
+
+// ---- Sertifikat ----
+function isCertified(subjectId){
+  return !!localStorage.getItem('aiacademy_certified_' + subjectId);
+}
+function setCertified(subjectId){
+  localStorage.setItem('aiacademy_certified_' + subjectId, JSON.stringify({ date: new Date().toISOString() }));
+}
+function showCertificate(subjectId){
+  const subject = SUBJECTS.find(s => s.id === subjectId);
+  const raw = localStorage.getItem('aiacademy_certified_' + subjectId);
+  const data = raw ? JSON.parse(raw) : { date: new Date().toISOString() };
+  const name = (sb && currentUser && currentUser.email) ? currentUser.email.split('@')[0] : 'O\'quvchi';
+  document.getElementById('cert-body-text').textContent =
+    'Ushbu sertifikat ' + name + ' ' + subjectLabel(subject) + ' fani bo\'yicha barcha 7 modulni muvaffaqiyatli yakunlaganini tasdiqlaydi.';
+  document.getElementById('cert-date-text').textContent = new Date(data.date).toLocaleDateString();
+  document.getElementById('certificate-overlay').classList.add('open');
+}
+document.getElementById('certificate-close-btn').addEventListener('click', () => {
+  document.getElementById('certificate-overlay').classList.remove('open');
+});
+document.getElementById('certificate-print-btn').addEventListener('click', () => window.print());
+document.getElementById('cert-btn').addEventListener('click', () => {
+  if(currentSubject) showCertificate(currentSubject.id);
+});
+
+// ---- Ball va reyting (Supabase) ----
+async function awardPoints(amount){
+  if(!sb || !currentUser) return;
+  try{ await sb.rpc('award_exam_points', { amount }); }catch(e){ console.error(e); }
+}
+
+const leaderboardOverlay = document.getElementById('leaderboard-overlay');
+document.getElementById('leaderboard-link').addEventListener('click', () => openLeaderboard());
+document.getElementById('leaderboard-close-btn').addEventListener('click', () => leaderboardOverlay.classList.remove('open'));
+leaderboardOverlay.addEventListener('click', (e) => { if(e.target === leaderboardOverlay) leaderboardOverlay.classList.remove('open'); });
+
+async function openLeaderboard(){
+  leaderboardOverlay.classList.add('open');
+  const body = document.getElementById('leaderboard-body');
+  const nicknameSetup = document.getElementById('nickname-setup');
+  body.innerHTML = '<div class="hint" style="text-align:center; padding:16px 0;">⏳ ...</div>';
+
+  if(!sb){
+    body.innerHTML = '<div class="modal-msg error">Reyting tizimi hali sozlanmagan.</div>';
+    return;
+  }
+
+  try{
+    const { data, error } = await sb.from('public_leaderboard').select('*').order('points', { ascending:false }).limit(20);
+    if(error) throw error;
+    if(!data || data.length === 0){
+      body.innerHTML = '<div class="hint" style="text-align:center; padding:16px 0;">Hali hech kim ball to\'plamagan.</div>';
+    } else {
+      body.innerHTML = '';
+      data.forEach((row, i) => {
+        const div = document.createElement('div');
+        div.className = 'lb-row';
+        div.innerHTML = '<span class="lb-rank">' + (i+1) + '</span><span class="lb-name">' + (row.nickname || 'Anonim') + '</span><span class="lb-points">' + row.points + '</span>';
+        body.appendChild(div);
+      });
+    }
+  }catch(err){
+    body.innerHTML = '<div class="modal-msg error">Reytingni yuklab bo\'lmadi.</div>';
+    console.error(err);
+  }
+
+  if(currentUser){
+    nicknameSetup.style.display = 'block';
+  } else {
+    nicknameSetup.style.display = 'none';
+  }
+}
+
+document.getElementById('nickname-save-btn').addEventListener('click', async () => {
+  if(!sb || !currentUser) return;
+  const val = document.getElementById('nickname-input').value.trim();
+  if(!val) return;
+  try{
+    await sb.from('profiles').update({ nickname: val }).eq('user_id', currentUser.id);
+    openLeaderboard();
+  }catch(err){ console.error(err); }
+});
+
+// ---- Progress panel (ota-ona/o'qituvchi bilan ulashish uchun) ----
+const progressOverlay = document.getElementById('progress-overlay');
+document.getElementById('progress-link').addEventListener('click', () => openProgressPanel());
+document.getElementById('progress-close-btn').addEventListener('click', () => progressOverlay.classList.remove('open'));
+progressOverlay.addEventListener('click', (e) => { if(e.target === progressOverlay) progressOverlay.classList.remove('open'); });
+
+function openProgressPanel(){
+  progressOverlay.classList.add('open');
+  const body = document.getElementById('progress-body');
+  body.innerHTML = '';
+
+  const streakRow = document.createElement('div');
+  streakRow.className = 'progress-row';
+  streakRow.innerHTML = '<span>🔥 Streak</span><span>' + updateStreak() + ' kun</span>';
+  body.appendChild(streakRow);
+
+  SUBJECTS.forEach((s) => {
+    const done = getProgress(s.id).length;
+    const unlocked = getUnlockedModule(s.id);
+    const cert = isCertified(s.id) ? ' 🏆' : '';
+    const row = document.createElement('div');
+    row.className = 'progress-row';
+    row.innerHTML = '<span>' + subjectLabel(s) + cert + '</span><span>' + done + '/70 dars \u00b7 ' + unlocked + '/7 modul</span>';
+    body.appendChild(row);
+  });
+}
 
 sendBtn.addEventListener('click', sendMessage);
 inputEl.addEventListener('keydown', (e) => {
