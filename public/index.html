@@ -421,6 +421,26 @@
     background:none; border:none; color: var(--text-dim); font-size: 18px; cursor:pointer;
   }
   .msg img.chat-img{ max-width: 220px; border-radius: 10px; display:block; margin-top:6px; }
+  .sched-day{ margin-bottom: 14px; }
+  .sched-day-label{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:13px; margin-bottom:6px; }
+  .sched-chip-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .sched-chip{
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px;
+    font-size: 12px; cursor:pointer; user-select:none; background: var(--bg);
+  }
+  .sched-chip.on{ background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
+  .cal-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:4px; }
+  .cal-cell{
+    aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size: 11px; position:relative; gap:2px;
+  }
+  .cal-cell .num{ font-size:11px; color: var(--text-dim); }
+  .cal-cell.empty{ border:none; }
+  .cal-dot-row{ display:flex; gap:2px; flex-wrap:wrap; justify-content:center; max-width:34px; }
+  .cal-dot{ width:6px; height:6px; border-radius:50%; }
+  .cal-dot.done{ background: var(--biology); }
+  .cal-dot.missed{ background: #ff8f8f; }
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0B0E1A">
@@ -445,6 +465,8 @@
     </select>
     <span class="nav-link" id="install-link" style="display:none;">Ilovani o'rnatish</span>
     <span class="nav-link" id="streak-badge" style="display:none;"></span>
+    <span class="nav-link" id="schedule-link" style="display:none;">🗓</span>
+    <span class="nav-link" id="calendar-link" style="display:none;">📅</span>
     <span class="nav-link" id="leaderboard-link">🏆</span>
     <span class="nav-link" id="progress-link" style="display:none;">📊</span>
     <span class="nav-link" id="contact-link">Aloqa</span>
@@ -501,6 +523,29 @@
       <input type="text" id="nickname-input" placeholder="Taxallusingiz">
       <button class="modal-primary-btn" id="nickname-save-btn">Saqlash</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="schedule-overlay">
+  <div class="modal-card" style="max-width:560px;">
+    <button class="modal-close" id="schedule-close-btn">&times;</button>
+    <div class="modal-title">🗓 Haftalik dars rejasi</div>
+    <div class="modal-sub">Har bir kunga qaysi fan(lar)dan shug'ullanishni belgilang</div>
+    <div id="schedule-body"></div>
+    <button class="modal-primary-btn" id="schedule-save-btn" style="margin-top:14px;">Saqlash</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="calendar-overlay">
+  <div class="modal-card" style="max-width:520px;">
+    <button class="modal-close" id="calendar-close-btn">&times;</button>
+    <div class="modal-title">📅 Faollik tarixi</div>
+    <div class="modal-sub" id="calendar-month-label"></div>
+    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+      <button class="level-btn" id="calendar-prev-btn">‹ Oldingi</button>
+      <button class="level-btn" id="calendar-next-btn">Keyingi ›</button>
+    </div>
+    <div id="calendar-body"></div>
   </div>
 </div>
 
@@ -1349,6 +1394,34 @@ function selectSubject(id){
   document.getElementById('image-attach-btn').disabled = false;
   input.focus();
   renderCurriculum(currentSubject.id);
+  loadChatHistory(id);
+}
+
+async function loadChatHistory(subjectId){
+  if(!sb || !currentUser) return;
+  try{
+    const { data, error } = await sb.from('chat_history').select('messages').eq('user_id', currentUser.id).eq('subject_id', subjectId).maybeSingle();
+    if(error || !data || !data.messages || data.messages.length === 0) return;
+    if(!currentSubject || currentSubject.id !== subjectId) return; // foydalanuvchi shu orada boshqa fanga o'tgan bo'lishi mumkin
+
+    history = data.messages;
+    const messagesEl2 = document.getElementById('messages');
+    messagesEl2.innerHTML = '';
+    history.forEach(m => {
+      const role = m.role === 'assistant' ? 'assistant' : 'user';
+      const textContent = typeof m.content === 'string' ? m.content : (m.content.find(c => c.type === 'text') || {}).text || '';
+      addMessage(role, textContent);
+    });
+  }catch(err){ console.error(err); }
+}
+
+async function saveChatHistory(subjectId){
+  if(!sb || !currentUser) return;
+  try{
+    await sb.from('chat_history').upsert({
+      user_id: currentUser.id, subject_id: subjectId, messages: history, updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,subject_id' });
+  }catch(err){ console.error(err); }
 }
 
 const messagesEl = document.getElementById('messages');
@@ -1460,6 +1533,7 @@ async function sendMessage(){
     const reply = textBlock ? textBlock.text : 'Kechirasiz, javob olishda xatolik yuz berdi. Qayta urinib ko\'ring.';
     addMessage('assistant', reply);
     history.push({ role:'assistant', content: reply });
+    saveChatHistory(currentSubject.id);
   }catch(err){
     typingEl.remove();
     addMessage('assistant', 'Kechirasiz, ulanishda xatolik yuz berdi. Internetni tekshirib, qayta urinib ko\'ring.');
@@ -1472,13 +1546,119 @@ async function sendMessage(){
 }
 
 
+// ---- Hisobga bog'langan progress (barcha qurilmalarda bir xil) ----
+let remoteProgress = null;   // { subjectId: {unlocked_module, completed_lessons, certified, level_label} }
+let remoteSchedule = null;   // { 0: [subjectId,...], ..., 6: [...] }
+let activityDates = null;    // Set('YYYY-MM-DD') -- barcha fanlar bo'yicha, streak uchun
+let activityBySubjectDate = null; // { 'YYYY-MM-DD': Set(subjectId) } -- kalendar uchun
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+async function loadRemoteData(){
+  if(!sb || !currentUser) return;
+  try{
+    const [progRes, schedRes, actRes] = await Promise.all([
+      sb.from('subject_progress').select('*').eq('user_id', currentUser.id),
+      sb.from('weekly_schedule').select('*').eq('user_id', currentUser.id),
+      sb.from('lesson_activity').select('*').eq('user_id', currentUser.id).order('activity_date', { ascending:false }).limit(400)
+    ]);
+
+    if(progRes.error || schedRes.error || actRes.error){
+      // Jadvallar hali yaratilmagan yoki ulanish xatoligi bo'lsa — mahalliy (localStorage)
+      // progressni buzib qo'ymaslik uchun remote holatni null qilib qo'yamiz.
+      console.error('Supabase progress xatoligi (SQL qayta ishga tushirilganmi tekshiring):', progRes.error || schedRes.error || actRes.error);
+      remoteProgress = null;
+      remoteSchedule = null;
+      activityDates = null;
+      activityBySubjectDate = null;
+      return;
+    }
+
+    remoteProgress = {};
+    (progRes.data || []).forEach(r => { remoteProgress[r.subject_id] = r; });
+
+    remoteSchedule = {0:[],1:[],2:[],3:[],4:[],5:[],6:[]};
+    (schedRes.data || []).forEach(r => { remoteSchedule[r.day_of_week].push(r.subject_id); });
+
+    activityDates = new Set();
+    activityBySubjectDate = {};
+    (actRes.data || []).forEach(r => {
+      activityDates.add(r.activity_date);
+      if(!activityBySubjectDate[r.activity_date]) activityBySubjectDate[r.activity_date] = new Set();
+      activityBySubjectDate[r.activity_date].add(r.subject_id);
+    });
+
+    // Birinchi marta sinxronlash: agar shu qurilmada (localStorage) progress bor,
+    // lekin hisobda hali yo'q bo'lsa — uni hisobga ko'chiramiz (yo'qotib qo'ymaslik uchun).
+    for(const s of SUBJECTS){
+      if(remoteProgress[s.id]) continue;
+      const localUnlocked = parseInt(localStorage.getItem('aiacademy_unlocked_' + s.id) || '1', 10);
+      let localDone = [];
+      try{ localDone = JSON.parse(localStorage.getItem('aiacademy_progress_' + s.id) || '[]'); }catch(e){}
+      const localCert = !!localStorage.getItem('aiacademy_certified_' + s.id);
+      if(localUnlocked > 1 || localDone.length > 0 || localCert){
+        const row = { user_id: currentUser.id, subject_id: s.id, unlocked_module: localUnlocked, completed_lessons: localDone, certified: localCert };
+        remoteProgress[s.id] = row;
+        sb.from('subject_progress').upsert(row, { onConflict: 'user_id,subject_id' }).then(({error}) => { if(error) console.error(error); });
+      }
+    }
+
+    updateStreak();
+    if(currentSubject) renderCurriculum(currentSubject.id);
+  }catch(err){
+    console.error('loadRemoteData xatoligi', err);
+    remoteProgress = null;
+    remoteSchedule = null;
+    activityDates = null;
+    activityBySubjectDate = null;
+  }
+}
+
+async function logExamAttempt(subjectId, examType, moduleIdx, score, total, passed){
+  if(!sb || !currentUser) return;
+  try{
+    await sb.from('exam_attempts').insert({
+      user_id: currentUser.id, subject_id: subjectId, exam_type: examType,
+      module_idx: moduleIdx, score, total, passed
+    });
+  }catch(err){ console.error(err); }
+}
+
+async function logActivity(subjectId){
+  if(!sb || !currentUser) return;
+  const date = todayStr();
+  if(!activityDates) activityDates = new Set();
+  if(!activityBySubjectDate) activityBySubjectDate = {};
+  activityDates.add(date);
+  if(!activityBySubjectDate[date]) activityBySubjectDate[date] = new Set();
+  activityBySubjectDate[date].add(subjectId);
+  try{
+    await sb.from('lesson_activity').upsert({ user_id: currentUser.id, subject_id: subjectId, activity_date: date }, { onConflict: 'user_id,subject_id,activity_date' });
+  }catch(err){ console.error(err); }
+  updateStreak();
+}
+
 function getProgress(subjectId){
+  if(remoteProgress){
+    return (remoteProgress[subjectId] && remoteProgress[subjectId].completed_lessons) || [];
+  }
   try{
     return JSON.parse(localStorage.getItem('aiacademy_progress_' + subjectId) || '[]');
   }catch(e){ return []; }
 }
 function setProgress(subjectId, arr){
   localStorage.setItem('aiacademy_progress_' + subjectId, JSON.stringify(arr));
+  if(remoteProgress && sb && currentUser){
+    if(!remoteProgress[subjectId]) remoteProgress[subjectId] = { subject_id: subjectId, unlocked_module: 1, completed_lessons: [], certified: false };
+    remoteProgress[subjectId].completed_lessons = arr;
+    sb.from('subject_progress').upsert({
+      user_id: currentUser.id, subject_id: subjectId,
+      unlocked_module: remoteProgress[subjectId].unlocked_module || 1,
+      completed_lessons: arr,
+      certified: remoteProgress[subjectId].certified || false,
+      level_label: remoteProgress[subjectId].level_label || null
+    }, { onConflict: 'user_id,subject_id' }).then(({error}) => { if(error) console.error(error); });
+  }
 }
 
 async function renderCurriculum(subjectId){
@@ -1617,6 +1797,7 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
       return;
     }
     awardPoints(5);
+    logActivity(subjectId);
   }
 
   const prompt = lessonNumber + '-dars: "' + lessonTitle + '" mavzusini menga chuqur va puxta o\'rgating — bu keyinchalik qiyin imtihonda so\'raladigan darajada bo\'lishi kerak, shuning uchun yuzaki tushuntirmang. Quyidagi tuzilishda bering: 1) Mavzuning to\'liq va aniq ta\'rifi/tushuntirishi (boshidan, lekin chuqur), 2) Kamida 3-4 ta aniq misol, oddiy-dan murakkabgacha, 3) Nozik jihatlar, chalkashtiradigan holatlar va o\'quvchilar ko\'p qiladigan xatolar, 4) Mavzuning chuqurroq/ilg\'or qirralari (nafaqat asoslar), 5) Oxirida shu mavzu bo\'yicha 1 ta amaliy, imtihon darajasidagi mashq (javobini keyin so\'rasam beraman deb yozing).';
@@ -1627,9 +1808,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -1731,12 +1912,19 @@ function renderAuthArea(session){
       await sb.auth.signOut();
     });
     refreshProfile();
+    loadRemoteData();
   } else {
     authArea.innerHTML = '<button class="auth-btn" id="auth-open-btn">Kirish</button>';
     document.getElementById('auth-open-btn').addEventListener('click', openAuth);
     updateUsageBanner(null);
+    remoteProgress = null;
+    remoteSchedule = null;
+    activityDates = null;
+    activityBySubjectDate = null;
   }
   document.getElementById('progress-link').style.display = currentUser ? 'inline' : 'none';
+  document.getElementById('schedule-link').style.display = currentUser ? 'inline' : 'none';
+  document.getElementById('calendar-link').style.display = currentUser ? 'inline' : 'none';
 }
 
 // ---- VIP to'lov (Stripe) ----
@@ -1859,13 +2047,26 @@ let quizMode = 'level';
 let examModuleIdx = null;
 
 function getUnlockedModule(subjectId){
+  if(remoteProgress){
+    return (remoteProgress[subjectId] && remoteProgress[subjectId].unlocked_module) || 1;
+  }
   const raw = localStorage.getItem('aiacademy_unlocked_' + subjectId);
   return raw ? parseInt(raw, 10) : 1;
 }
 function setUnlockedModule(subjectId, moduleNum){
   const current = getUnlockedModule(subjectId);
-  if(moduleNum > current){
-    localStorage.setItem('aiacademy_unlocked_' + subjectId, String(moduleNum));
+  if(moduleNum <= current) return;
+  localStorage.setItem('aiacademy_unlocked_' + subjectId, String(moduleNum));
+  if(remoteProgress && sb && currentUser){
+    if(!remoteProgress[subjectId]) remoteProgress[subjectId] = { subject_id: subjectId, unlocked_module: 1, completed_lessons: [], certified: false };
+    remoteProgress[subjectId].unlocked_module = moduleNum;
+    sb.from('subject_progress').upsert({
+      user_id: currentUser.id, subject_id: subjectId,
+      unlocked_module: moduleNum,
+      completed_lessons: remoteProgress[subjectId].completed_lessons || [],
+      certified: remoteProgress[subjectId].certified || false,
+      level_label: remoteProgress[subjectId].level_label || null
+    }, { onConflict: 'user_id,subject_id' }).then(({error}) => { if(error) console.error(error); });
   }
 }
 
@@ -1958,6 +2159,7 @@ document.getElementById('level-quiz-submit').addEventListener('click', async () 
   else { levelLabel = 'Yuqori'; recommendedModule = 6; }
 
   localStorage.setItem('aiacademy_level_' + subjectId, JSON.stringify({ levelLabel, recommendedModule, correct }));
+  logExamAttempt(subjectId, 'level', null, correct, 25, true);
   setUnlockedModule(subjectId, recommendedModule);
 
   document.getElementById('level-quiz-body').innerHTML = '';
@@ -2088,6 +2290,7 @@ async function handleExamSubmit(){
   });
 
   const passed = correct >= 21;
+  logExamAttempt(subjectId, 'module', examModuleIdx, correct, 30, passed);
   document.getElementById('level-quiz-body').innerHTML = '';
   document.getElementById('level-quiz-submit').style.display = 'none';
   const result = document.getElementById('level-result');
@@ -2262,30 +2465,66 @@ updateStreak();
 
 // ---- Kunlik streak ----
 function updateStreak(){
-  const today = new Date().toISOString().slice(0,10);
-  let data;
-  try{ data = JSON.parse(localStorage.getItem('aiacademy_streak') || '{"count":0,"lastDate":null}'); }
-  catch(e){ data = {count:0, lastDate:null}; }
-  if(data.lastDate !== today){
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
-    data.count = (data.lastDate === yesterday) ? data.count + 1 : 1;
-    data.lastDate = today;
-    localStorage.setItem('aiacademy_streak', JSON.stringify(data));
+  let count;
+  if(activityDates){
+    // Hisobga bog'langan faollik asosida ketma-ket kunlarni hisoblash
+    count = 0;
+    let d = new Date();
+    while(true){
+      const ds = d.toISOString().slice(0,10);
+      if(activityDates.has(ds)){
+        count++;
+        d.setDate(d.getDate() - 1);
+      } else if(ds === todayStr()){
+        // bugun hali dars boshlanmagan bo'lishi mumkin, kechagidan davom etamiz
+        d.setDate(d.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  } else {
+    const today = new Date().toISOString().slice(0,10);
+    let data;
+    try{ data = JSON.parse(localStorage.getItem('aiacademy_streak') || '{"count":0,"lastDate":null}'); }
+    catch(e){ data = {count:0, lastDate:null}; }
+    if(data.lastDate !== today){
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+      data.count = (data.lastDate === yesterday) ? data.count + 1 : 1;
+      data.lastDate = today;
+      localStorage.setItem('aiacademy_streak', JSON.stringify(data));
+    }
+    count = data.count;
   }
   const badge = document.getElementById('streak-badge');
-  if(data.count > 0){
+  if(count > 0){
     badge.style.display = 'inline';
-    badge.textContent = '🔥 ' + data.count;
+    badge.textContent = '🔥 ' + count;
+  } else {
+    badge.style.display = 'none';
   }
-  return data.count;
+  return count;
 }
 
 // ---- Sertifikat ----
 function isCertified(subjectId){
+  if(remoteProgress){
+    return !!(remoteProgress[subjectId] && remoteProgress[subjectId].certified);
+  }
   return !!localStorage.getItem('aiacademy_certified_' + subjectId);
 }
 function setCertified(subjectId){
   localStorage.setItem('aiacademy_certified_' + subjectId, JSON.stringify({ date: new Date().toISOString() }));
+  if(remoteProgress && sb && currentUser){
+    if(!remoteProgress[subjectId]) remoteProgress[subjectId] = { subject_id: subjectId, unlocked_module: 7, completed_lessons: [], certified: false };
+    remoteProgress[subjectId].certified = true;
+    sb.from('subject_progress').upsert({
+      user_id: currentUser.id, subject_id: subjectId,
+      unlocked_module: remoteProgress[subjectId].unlocked_module || 7,
+      completed_lessons: remoteProgress[subjectId].completed_lessons || [],
+      certified: true,
+      level_label: remoteProgress[subjectId].level_label || null
+    }, { onConflict: 'user_id,subject_id' }).then(({error}) => { if(error) console.error(error); });
+  }
 }
 function showCertificate(subjectId){
   const subject = SUBJECTS.find(s => s.id === subjectId);
@@ -2388,6 +2627,182 @@ function openProgressPanel(){
     row.innerHTML = '<span>' + subjectLabel(s) + cert + '</span><span>' + done + '/70 dars \u00b7 ' + unlocked + '/7 modul</span>';
     body.appendChild(row);
   });
+
+  loadExamHistory(body);
+}
+
+async function loadExamHistory(body){
+  if(!sb || !currentUser) return;
+  const heading = document.createElement('div');
+  heading.style.cssText = 'font-family:Space Grotesk,sans-serif; font-weight:700; font-size:13px; margin:16px 0 6px;';
+  heading.textContent = 'So\'nggi imtihonlar';
+  body.appendChild(heading);
+  const list = document.createElement('div');
+  body.appendChild(list);
+  list.innerHTML = '<div class="hint" style="padding:8px 0;">⏳ ...</div>';
+
+  try{
+    const { data, error } = await sb.from('exam_attempts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending:false }).limit(10);
+    if(error || !data || data.length === 0){
+      list.innerHTML = '<div class="hint" style="padding:4px 0;">Hali imtihon topshirilmagan.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    data.forEach(a => {
+      const subj = SUBJECTS.find(s => s.id === a.subject_id);
+      const label = subj ? subjectLabel(subj) : a.subject_id;
+      const typeLabel = a.exam_type === 'level' ? 'Daraja testi' : (a.module_idx + '-modul imtihoni');
+      const row = document.createElement('div');
+      row.className = 'progress-row';
+      row.innerHTML = '<span>' + label + ' \u2014 ' + typeLabel + '</span><span>' + (a.passed ? '\u2705' : '\u274c') + ' ' + a.score + '/' + a.total + '</span>';
+      list.appendChild(row);
+    });
+  }catch(err){
+    list.innerHTML = '<div class="modal-msg error">Yuklab bo\'lmadi.</div>';
+    console.error(err);
+  }
+}
+
+
+// ---- Haftalik jadval ----
+const DAY_ORDER = [1,2,3,4,5,6,0]; // Dushanba...Yakshanba (JS getDay(): 0=Yakshanba)
+const DAY_LABELS_UZ = {1:'Dushanba',2:'Seshanba',3:'Chorshanba',4:'Payshanba',5:'Juma',6:'Shanba',0:'Yakshanba'};
+
+const scheduleOverlay = document.getElementById('schedule-overlay');
+document.getElementById('schedule-link').addEventListener('click', () => openSchedule());
+document.getElementById('schedule-close-btn').addEventListener('click', () => scheduleOverlay.classList.remove('open'));
+scheduleOverlay.addEventListener('click', (e) => { if(e.target === scheduleOverlay) scheduleOverlay.classList.remove('open'); });
+
+let scheduleDraft = null; // { dow: Set(subjectId) }
+
+function openSchedule(){
+  if(!sb || !currentUser){ openAuth(); return; }
+  scheduleOverlay.classList.add('open');
+  scheduleDraft = {};
+  DAY_ORDER.forEach(d => { scheduleDraft[d] = new Set((remoteSchedule && remoteSchedule[d]) || []); });
+
+  const body = document.getElementById('schedule-body');
+  body.innerHTML = '';
+  DAY_ORDER.forEach(d => {
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'sched-day';
+    const label = document.createElement('div');
+    label.className = 'sched-day-label';
+    label.textContent = DAY_LABELS_UZ[d];
+    const chipRow = document.createElement('div');
+    chipRow.className = 'sched-chip-row';
+    SUBJECTS.forEach(s => {
+      const chip = document.createElement('div');
+      chip.className = 'sched-chip' + (scheduleDraft[d].has(s.id) ? ' on' : '');
+      chip.textContent = subjectLabel(s);
+      chip.addEventListener('click', () => {
+        if(scheduleDraft[d].has(s.id)){ scheduleDraft[d].delete(s.id); chip.classList.remove('on'); }
+        else { scheduleDraft[d].add(s.id); chip.classList.add('on'); }
+      });
+      chipRow.appendChild(chip);
+    });
+    dayDiv.appendChild(label);
+    dayDiv.appendChild(chipRow);
+    body.appendChild(dayDiv);
+  });
+}
+
+document.getElementById('schedule-save-btn').addEventListener('click', async () => {
+  if(!sb || !currentUser || !scheduleDraft) return;
+  const rows = [];
+  DAY_ORDER.forEach(d => {
+    scheduleDraft[d].forEach(subjectId => {
+      rows.push({ user_id: currentUser.id, day_of_week: d, subject_id: subjectId });
+    });
+  });
+  try{
+    await sb.from('weekly_schedule').delete().eq('user_id', currentUser.id);
+    if(rows.length > 0){
+      await sb.from('weekly_schedule').insert(rows);
+    }
+    remoteSchedule = {0:[],1:[],2:[],3:[],4:[],5:[],6:[]};
+    DAY_ORDER.forEach(d => { remoteSchedule[d] = Array.from(scheduleDraft[d]); });
+    scheduleOverlay.classList.remove('open');
+  }catch(err){ console.error(err); alert('Saqlashda xatolik yuz berdi.'); }
+});
+
+// ---- Kalendar (faollik tarixi) ----
+const calendarOverlay = document.getElementById('calendar-overlay');
+document.getElementById('calendar-link').addEventListener('click', () => openCalendar());
+document.getElementById('calendar-close-btn').addEventListener('click', () => calendarOverlay.classList.remove('open'));
+calendarOverlay.addEventListener('click', (e) => { if(e.target === calendarOverlay) calendarOverlay.classList.remove('open'); });
+
+let calendarViewDate = new Date();
+calendarViewDate.setDate(1);
+
+const MONTH_NAMES_UZ = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+
+function openCalendar(){
+  if(!sb || !currentUser){ openAuth(); return; }
+  calendarOverlay.classList.add('open');
+  renderCalendar();
+}
+
+document.getElementById('calendar-prev-btn').addEventListener('click', () => {
+  calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
+  renderCalendar();
+});
+document.getElementById('calendar-next-btn').addEventListener('click', () => {
+  calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
+  renderCalendar();
+});
+
+function renderCalendar(){
+  document.getElementById('calendar-month-label').textContent = MONTH_NAMES_UZ[calendarViewDate.getMonth()] + ' ' + calendarViewDate.getFullYear();
+  const body = document.getElementById('calendar-body');
+  body.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'cal-grid';
+
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7; // Dushanba=0 boshlanadigan qilib
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayDs = todayStr();
+
+  for(let i = 0; i < startOffset; i++){
+    const empty = document.createElement('div');
+    empty.className = 'cal-cell empty';
+    grid.appendChild(empty);
+  }
+
+  for(let day = 1; day <= daysInMonth; day++){
+    const dateObj = new Date(year, month, day);
+    const ds = dateObj.toISOString().slice(0,10);
+    const dow = dateObj.getDay();
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+
+    const numEl = document.createElement('div');
+    numEl.className = 'num';
+    numEl.textContent = day;
+    cell.appendChild(numEl);
+
+    const scheduled = (remoteSchedule && remoteSchedule[dow]) || [];
+    if(scheduled.length > 0 && ds <= todayDs){
+      const doneSet = (activityBySubjectDate && activityBySubjectDate[ds]) || new Set();
+      const dotRow = document.createElement('div');
+      dotRow.className = 'cal-dot-row';
+      scheduled.forEach(subjectId => {
+        const dot = document.createElement('div');
+        dot.className = 'cal-dot ' + (doneSet.has(subjectId) ? 'done' : 'missed');
+        dot.title = subjectLabel(SUBJECTS.find(s => s.id === subjectId) || {id:subjectId, label:subjectId});
+        dotRow.appendChild(dot);
+      });
+      cell.appendChild(dotRow);
+    }
+
+    if(ds === todayDs){ cell.style.borderColor = 'var(--accent)'; }
+    grid.appendChild(cell);
+  }
+
+  body.appendChild(grid);
 }
 
 sendBtn.addEventListener('click', sendMessage);
