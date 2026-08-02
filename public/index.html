@@ -1871,9 +1871,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -2927,7 +2927,7 @@ function makeParticleField(count, colorChoices, spread, size){
   }
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.PointsMaterial({ size, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false });
+  const mat = new THREE.PointsMaterial({ size, vertexColors: true, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending });
   return new THREE.Points(geo, mat);
 }
 
@@ -2941,7 +2941,7 @@ function clearThemeScene(){
 function buildSpaceTheme(){
   clearThemeScene();
   themeScene.fog = new THREE.FogExp2(0x05060f, 0.012);
-  themeParticles = makeParticleField(1600, [0xffffff, 0x9db8ff, 0xc9a8ff, 0x6be0ff], 70, 0.18);
+  themeParticles = makeParticleField(2200, [0xffffff, 0xa8c8ff, 0xd6b8ff, 0x8be8ff], 75, 0.26);
   themeScene.add(themeParticles);
 
   const planetGeo = new THREE.SphereGeometry(3.2, 32, 32);
@@ -2963,7 +2963,7 @@ function buildSpaceTheme(){
 function buildCuteTheme(){
   clearThemeScene();
   themeScene.fog = new THREE.FogExp2(0x2a1f3a, 0.01);
-  themeParticles = makeParticleField(900, [0xffc9de, 0xd6b8ff, 0xffffff, 0xffe3f0], 60, 0.22);
+  themeParticles = makeParticleField(1300, [0xff9dcf, 0xe0b3ff, 0xffffff, 0xffb8e0], 62, 0.3);
   themeScene.add(themeParticles);
 
   for(let i = 0; i < 4; i++){
@@ -2979,7 +2979,7 @@ function buildCuteTheme(){
 function buildPirateTheme(){
   clearThemeScene();
   themeScene.fog = new THREE.FogExp2(0x0d1a1a, 0.02);
-  themeParticles = makeParticleField(700, [0xffb347, 0xffd27f, 0x9fd8c9], 55, 0.16);
+  themeParticles = makeParticleField(1000, [0xffb347, 0xffe08a, 0xffd27f], 58, 0.24);
   themeScene.add(themeParticles);
 
   const ship = new THREE.Group();
@@ -3012,7 +3012,7 @@ function buildPirateTheme(){
 function buildNatureTheme(){
   clearThemeScene();
   themeScene.fog = new THREE.FogExp2(0x9fd0e0, 0.012);
-  themeParticles = makeParticleField(500, [0xffffff, 0xd8f0ff, 0xc9f2d9], 55, 0.14);
+  themeParticles = makeParticleField(800, [0xffffff, 0xd8f0ff, 0x9dffc0], 58, 0.22);
   themeScene.add(themeParticles);
 
   const mountainColors = [0x3a5a4a, 0x4f7a5f, 0x6a9478];
@@ -3050,7 +3050,7 @@ function buildNatureTheme(){
 function buildTechTheme(){
   clearThemeScene();
   themeScene.fog = new THREE.FogExp2(0x1a0505, 0.014);
-  themeParticles = makeParticleField(700, [0xff4d4d, 0xffb347, 0xff9d9d], 55, 0.15);
+  themeParticles = makeParticleField(1000, [0xff4d4d, 0xffb347, 0xffe08a], 58, 0.24);
   themeScene.add(themeParticles);
 
   const coreGeo = new THREE.IcosahedronGeometry(2.4, 1);
@@ -3112,8 +3112,31 @@ function animateTheme(){
   }
 }
 
+const THEME_COLORS = {
+  space: { bg:'#05060f', surface:'#12142a', surface2:'#1c2148', line:'#33397a', text:'#f0f2ff', accent:'#7fd4ff', overlay:'rgba(5,6,20,0.28)' },
+  cute: { bg:'#3a1f42', surface:'#54295f', surface2:'#6f3676', line:'#8a4d8f', text:'#fff2fb', accent:'#ff6fb8', overlay:'rgba(58,20,55,0.28)' },
+  pirate: { bg:'#0a1a1a', surface:'#153030', surface2:'#1e4040', line:'#2f5c56', text:'#fdf1d9', accent:'#ffb347', overlay:'rgba(6,20,18,0.3)' },
+  nature: { bg:'#123024', surface:'#1c4a35', surface2:'#276147', line:'#3d8a63', text:'#eefff2', accent:'#7ee08c', overlay:'rgba(10,32,24,0.25)' },
+  tech: { bg:'#170505', surface:'#2c0c0c', surface2:'#421212', line:'#6b1e1e', text:'#fff0ea', accent:'#ff5c3d', overlay:'rgba(20,5,5,0.3)' },
+};
+
+function applyThemeColors(themeKey){
+  const c = THEME_COLORS[themeKey];
+  if(!c) return;
+  const root = document.documentElement.style;
+  root.setProperty('--bg', c.bg);
+  root.setProperty('--surface', c.surface);
+  root.setProperty('--surface-2', c.surface2);
+  root.setProperty('--line', c.line);
+  root.setProperty('--text', c.text);
+  root.setProperty('--accent', c.accent);
+  document.getElementById('theme-canvas').style.filter = 'saturate(1.35) brightness(1.15)';
+  const overlay = document.querySelector('.scene-overlay');
+  if(overlay) overlay.style.background = c.overlay;
+}
+
 function setTheme(themeKey){
-  if(!THEME_BUILDERS[themeKey]) themeKey = 'default';
+  if(!THEME_BUILDERS[themeKey]) themeKey = 'space';
   localStorage.setItem('aiacademy_theme', themeKey);
   document.querySelectorAll('.theme-option').forEach(el => {
     el.classList.toggle('active', el.dataset.theme === themeKey);
@@ -3122,6 +3145,7 @@ function setTheme(themeKey){
     if(!initThemeRenderer()) return;
   }
   THEME_BUILDERS[themeKey]();
+  applyThemeColors(themeKey);
   if(!themeAnimId) animateTheme();
 }
 
