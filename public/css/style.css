@@ -1,18 +1,19 @@
 :root{
-    --bg: #0B0E1A;
-    --surface: #131829;
-    --surface-2: #1B2138;
-    --line: #262E4A;
-    --text: #F0F2F8;
-    --text-dim: #8B93AB;
-    --coding: #5EEAD4;
-    --math: #FBBF6A;
-    --physics: #7DA6FF;
-    --chemistry: #C77DFF;
-    --biology: #8FE388;
-    --psychology: #FF8FA3;
-    --grammar: #F2CB6E;
-    --history: #D98E73;
+    --bg: #F7F8FC;
+  --surface: #FFFFFF;
+  --surface-2: #EEF1F7;
+  --line: #D9DEEA;
+  --text: #111827;
+  --text-dim: #6B7280;
+
+  --coding: #14B8A6;
+  --math: #F59E0B;
+  --physics: #3B82F6;
+  --chemistry: #A855F7;
+  --biology: #22C55E;
+  --psychology: #F43F5E;
+  --grammar: #D97706;
+  --history: #C2410C;
     --accent: var(--coding);
   }
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -437,7 +438,7 @@
   }
   .scene-overlay{
     position: fixed; inset: 0; z-index: 0;
-    background: rgba(11,14,26,0.55);
+    background: rgba(255,255,255,0.45);
     pointer-events: none;
   }
   .theme-grid{
