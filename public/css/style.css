@@ -1,10 +1,10 @@
 :root{
-    --bg: #F7F8FC;
-  --surface: #FFFFFF;
-  --surface-2: #EEF1F7;
-  --line: #D9DEEA;
+    --bg: #ffffff;
+  --surface: #f8fafc;
+  --surface-2: #f1f5f9;
+  --line: #e2e8f0;
   --text: #111827;
-  --text-dim: #6B7280;
+  --text-dim: #64748b;
 
   --coding: #14B8A6;
   --math: #F59E0B;
