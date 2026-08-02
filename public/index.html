@@ -443,11 +443,11 @@
   .cal-dot.done{ background: var(--biology); }
   .cal-dot.missed{ background: #ff8f8f; }
   #theme-canvas{
-    position: fixed; inset: 0; z-index: -2;
+    position: fixed; inset: 0; z-index: 0;
     width: 100%; height: 100%; display: block;
   }
   .scene-overlay{
-    position: fixed; inset: 0; z-index: -1;
+    position: fixed; inset: 0; z-index: 0;
     background: rgba(11,14,26,0.55);
     pointer-events: none;
   }
@@ -570,10 +570,6 @@
       <div class="theme-option" data-theme="tech">
         <div class="theme-swatch swatch-tech"></div>
         <div class="theme-name">⚙️ Texno-qahramon</div>
-      </div>
-      <div class="theme-option" data-theme="default">
-        <div class="theme-swatch swatch-default"></div>
-        <div class="theme-name">✦ Standart</div>
       </div>
     </div>
   </div>
@@ -1875,9 +1871,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -3130,7 +3126,7 @@ function setTheme(themeKey){
 }
 
 function initThemeSystem(){
-  const saved = localStorage.getItem('aiacademy_theme') || 'default';
+  const saved = localStorage.getItem('aiacademy_theme') || 'space';
   setTheme(saved);
 }
 
