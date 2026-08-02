@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <style>
   :root{
     --bg: #0B0E1A;
@@ -441,6 +442,35 @@
   .cal-dot{ width:6px; height:6px; border-radius:50%; }
   .cal-dot.done{ background: var(--biology); }
   .cal-dot.missed{ background: #ff8f8f; }
+  #theme-canvas{
+    position: fixed; inset: 0; z-index: -2;
+    width: 100%; height: 100%; display: block;
+  }
+  .scene-overlay{
+    position: fixed; inset: 0; z-index: -1;
+    background: rgba(11,14,26,0.55);
+    pointer-events: none;
+  }
+  .theme-grid{
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-top: 8px;
+  }
+  .theme-option{
+    cursor: pointer; border-radius: 12px; padding: 4px;
+    border: 2px solid transparent; transition: border-color .2s;
+    text-align: center;
+  }
+  .theme-option:hover, .theme-option.active{ border-color: var(--accent); }
+  .theme-swatch{
+    width: 100%; aspect-ratio: 1.3; border-radius: 10px; margin-bottom: 6px;
+  }
+  .theme-name{ font-size: 11.5px; color: var(--text-dim); }
+  .swatch-space{ background: radial-gradient(circle at 30% 30%, #3a3f7a, #05060f 70%); }
+  .swatch-cute{ background: linear-gradient(135deg, #ffc9de, #c9b6ff); }
+  .swatch-pirate{ background: linear-gradient(135deg, #1b3a3a, #3d2b16); }
+  .swatch-nature{ background: linear-gradient(135deg, #a8e6c1, #4f92c9); }
+  .swatch-tech{ background: linear-gradient(135deg, #2a0a0a, #3a3a3a); }
+  .swatch-default{ background: radial-gradient(circle at 30% 20%, #1B2138, #0B0E1A); }
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0B0E1A">
@@ -449,6 +479,8 @@
 </head>
 <body>
 
+<canvas id="theme-canvas"></canvas>
+<div class="scene-overlay"></div>
 <div class="bg-glow"></div>
 
 <header>
@@ -464,6 +496,7 @@
       <option value="ar">العربية</option>
     </select>
     <span class="nav-link" id="install-link" style="display:none;">Ilovani o'rnatish</span>
+    <span class="nav-link" id="theme-picker-link" title="Fon mavzusi">🎨</span>
     <span class="nav-link" id="streak-badge" style="display:none;"></span>
     <span class="nav-link" id="schedule-link" style="display:none;">🗓</span>
     <span class="nav-link" id="calendar-link" style="display:none;">📅</span>
@@ -512,14 +545,48 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="theme-picker-overlay">
+  <div class="modal-card" style="max-width:520px;">
+    <button class="modal-close" id="theme-picker-close-btn">&times;</button>
+    <div class="modal-title">🎨 Fon mavzusini tanlang</div>
+    <div class="modal-sub">3D fon — o'zingizga yoqqanini tanlang</div>
+    <div class="theme-grid" id="theme-grid">
+      <div class="theme-option" data-theme="space">
+        <div class="theme-swatch swatch-space"></div>
+        <div class="theme-name">🌌 Galaktika</div>
+      </div>
+      <div class="theme-option" data-theme="cute">
+        <div class="theme-swatch swatch-cute"></div>
+        <div class="theme-name">🎀 Yoqimli</div>
+      </div>
+      <div class="theme-option" data-theme="pirate">
+        <div class="theme-swatch swatch-pirate"></div>
+        <div class="theme-name">🏴‍☠️ Qaroqchilar</div>
+      </div>
+      <div class="theme-option" data-theme="nature">
+        <div class="theme-swatch swatch-nature"></div>
+        <div class="theme-name">🏔️ Tabiat</div>
+      </div>
+      <div class="theme-option" data-theme="tech">
+        <div class="theme-swatch swatch-tech"></div>
+        <div class="theme-name">⚙️ Texno-qahramon</div>
+      </div>
+      <div class="theme-option" data-theme="default">
+        <div class="theme-swatch swatch-default"></div>
+        <div class="theme-name">✦ Standart</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="leaderboard-overlay">
   <div class="modal-card" style="max-width:440px;">
     <button class="modal-close" id="leaderboard-close-btn">&times;</button>
-    <div class="modal-title">🏆 Reyting</div>
-    <div class="modal-sub">Eng ko'p ball to'plagan o'quvchilar</div>
+    <div class="modal-title" id="leaderboard-title-el">🏆 Reyting</div>
+    <div class="modal-sub" id="leaderboard-sub-el">Eng ko'p ball to'plagan o'quvchilar</div>
     <div id="leaderboard-body" style="max-height:340px; overflow-y:auto;"></div>
     <div id="nickname-setup" style="display:none; margin-top:14px; border-top:1px solid var(--line); padding-top:14px;">
-      <div class="modal-sub" style="margin-bottom:8px;">Reytingda ko'rinadigan ismingizni tanlang:</div>
+      <div class="modal-sub" id="nickname-prompt-el" style="margin-bottom:8px;">Reytingda ko'rinadigan ismingizni tanlang:</div>
       <input type="text" id="nickname-input" placeholder="Taxallusingiz">
       <button class="modal-primary-btn" id="nickname-save-btn">Saqlash</button>
     </div>
@@ -529,8 +596,8 @@
 <div class="modal-overlay" id="schedule-overlay">
   <div class="modal-card" style="max-width:560px;">
     <button class="modal-close" id="schedule-close-btn">&times;</button>
-    <div class="modal-title">🗓 Haftalik dars rejasi</div>
-    <div class="modal-sub">Har bir kunga qaysi fan(lar)dan shug'ullanishni belgilang</div>
+    <div class="modal-title" id="schedule-title-el">🗓 Haftalik dars rejasi</div>
+    <div class="modal-sub" id="schedule-sub-el">Har bir kunga qaysi fan(lar)dan shug'ullanishni belgilang</div>
     <div id="schedule-body"></div>
     <button class="modal-primary-btn" id="schedule-save-btn" style="margin-top:14px;">Saqlash</button>
   </div>
@@ -539,7 +606,7 @@
 <div class="modal-overlay" id="calendar-overlay">
   <div class="modal-card" style="max-width:520px;">
     <button class="modal-close" id="calendar-close-btn">&times;</button>
-    <div class="modal-title">📅 Faollik tarixi</div>
+    <div class="modal-title" id="calendar-title-el">📅 Faollik tarixi</div>
     <div class="modal-sub" id="calendar-month-label"></div>
     <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
       <button class="level-btn" id="calendar-prev-btn">‹ Oldingi</button>
@@ -552,8 +619,8 @@
 <div class="modal-overlay" id="progress-overlay">
   <div class="modal-card" style="max-width:480px;">
     <button class="modal-close" id="progress-close-btn">&times;</button>
-    <div class="modal-title">📊 Progress</div>
-    <div class="modal-sub">Ota-ona yoki o'qituvchi bilan ulashish uchun shu sahifani ko'rsating</div>
+    <div class="modal-title" id="progress-title-el">📊 Progress</div>
+    <div class="modal-sub" id="progress-sub-el">Ota-ona yoki o'qituvchi bilan ulashish uchun shu sahifani ko'rsating</div>
     <div id="progress-body"></div>
   </div>
 </div>
@@ -562,8 +629,8 @@
   <div class="modal-card" style="max-width:600px;">
     <button class="modal-close" id="certificate-close-btn">&times;</button>
     <div id="certificate-content" style="text-align:center; padding:20px; border:2px solid var(--accent); border-radius:12px; background:#fff; color:#111;">
-      <div style="font-family:'Space Grotesk',sans-serif; font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:#888;">AI Academy</div>
-      <div style="font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700; margin:14px 0 6px;">Sertifikat</div>
+      <div style="font-family:'Space Grotesk',sans-serif; font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:#888;" id="cert-org-el">AI Academy</div>
+      <div style="font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700; margin:14px 0 6px;" id="cert-title-el">Sertifikat</div>
       <div style="font-size:13px; color:#555; margin-bottom:18px;" id="cert-body-text"></div>
       <div style="font-size:11px; color:#999;" id="cert-date-text"></div>
     </div>
@@ -1324,7 +1391,7 @@ const CURRICULA = {
   ]
 };
 
-const I18N = {"uz": {"dir": "ltr", "nav_contact": "Aloqa", "nav_install": "Ilovani o'rnatish", "auth_login": "Kirish", "hero_eyebrow": "Bepul • Barcha fanlar • AI bilan", "hero_title": "Barcha fanlarni bitta joyda o'rganing", "hero_sub": "Fanni tanlang, savolingizni yozing — AI o'qituvchi sizga qadam-baqadam, tushunarli tilda tushuntiradi.", "hint": "Har bir fan — o'z rangi bilan. Bosing va so'rang.", "core_label": "Fanni tanlang", "core_sub": "quyidan bittasini bosing", "chat_title_default": "Fan tanlanmagan", "chat_desc_default": "Yuqoridan fanni tanlang, so'ng savolingizni yozing", "input_placeholder_default": "Savolingizni yozing...", "send_btn": "Yuborish", "usage_login_prompt": "Darslarni boshlash uchun avval kiring", "curriculum_bajarildi": "bajarildi", "level_test_btn": "Darajangizni aniqlang", "lesson_start_btn": "Boshlash", "auth_welcome_title": "Xush kelibsiz", "auth_welcome_sub": "Davom etish uchun kiring", "auth_signup_title": "Ro'yxatdan o'tish", "google_btn": "Google orqali kirish", "or_divider": "yoki", "email_ph": "Email", "password_ph": "Parol", "submit_login": "Kirish", "submit_signup": "Ro'yxatdan o'tish", "toggle_to_signup_pre": "Hisobingiz yo'qmi?", "toggle_to_signup_link": "Ro'yxatdan o'ting", "toggle_to_signin_pre": "Hisobingiz bormi?", "toggle_to_signin_link": "Kiring", "contact_title": "Aloqa", "contact_sub": "Savol yoki taklifingiz bo'lsa, yozing", "contact_name_ph": "Ismingiz", "contact_email_ph": "Email", "contact_msg_ph": "Xabaringiz...", "contact_submit": "Yuborish", "upgrade_title": "Bugungi bepul limit tugadi", "upgrade_sub": "Kuniga 5 ta bepul dars mavjud. VIP a'zo bo'lib, cheksiz darslarga ega bo'ling.", "upgrade_btn": "VIP bo'lish — $5/oy", "footer": "AI Academy — sun'iy intellekt bilan o'rganing", "lang_label": "Til", "greeting": "Assalomu alaykum! Men sizning {subject} bo'yicha AI ustozingizman. Nimadan boshlaymiz? Savolingizni yozing yoki \"Noldan boshlamoqchiman\" deb yozing."}, "ru": {"dir": "ltr", "nav_contact": "Контакты", "nav_install": "Установить приложение", "auth_login": "Войти", "hero_eyebrow": "Бесплатно • Все предметы • С ИИ", "hero_title": "Изучайте все предметы в одном месте", "hero_sub": "Выберите предмет, задайте вопрос — ИИ-учитель объяснит вам шаг за шагом, понятным языком.", "hint": "У каждого предмета свой цвет. Нажмите и спросите.", "core_label": "Выберите предмет", "core_sub": "нажмите на один из них", "chat_title_default": "Предмет не выбран", "chat_desc_default": "Выберите предмет выше, затем напишите вопрос", "input_placeholder_default": "Напишите ваш вопрос...", "send_btn": "Отправить", "usage_login_prompt": "Войдите, чтобы начать уроки", "curriculum_bajarildi": "пройдено", "level_test_btn": "Определить уровень", "lesson_start_btn": "Начать", "auth_welcome_title": "Добро пожаловать", "auth_welcome_sub": "Войдите, чтобы продолжить", "auth_signup_title": "Регистрация", "google_btn": "Войти через Google", "or_divider": "или", "email_ph": "Email", "password_ph": "Пароль", "submit_login": "Войти", "submit_signup": "Зарегистрироваться", "toggle_to_signup_pre": "Нет аккаунта?", "toggle_to_signup_link": "Зарегистрируйтесь", "toggle_to_signin_pre": "Уже есть аккаунт?", "toggle_to_signin_link": "Войдите", "contact_title": "Контакты", "contact_sub": "Есть вопрос или предложение? Напишите нам", "contact_name_ph": "Ваше имя", "contact_email_ph": "Email", "contact_msg_ph": "Ваше сообщение...", "contact_submit": "Отправить", "upgrade_title": "Бесплатный лимит на сегодня исчерпан", "upgrade_sub": "Доступно 5 бесплатных уроков в день. Станьте VIP для неограниченного доступа.", "upgrade_btn": "Стать VIP — $5/мес", "footer": "AI Academy — учитесь вместе с искусственным интеллектом", "lang_label": "Язык", "greeting": "Здравствуйте! Я ваш ИИ-репетитор по предмету «{subject}». С чего начнём? Напишите свой вопрос, или напишите «Хочу начать с нуля»."}, "en": {"dir": "ltr", "nav_contact": "Contact", "nav_install": "Install app", "auth_login": "Log in", "hero_eyebrow": "Free • All subjects • Powered by AI", "hero_title": "Learn every subject in one place", "hero_sub": "Pick a subject and ask your question — your AI tutor explains it step by step, in plain language.", "hint": "Each subject has its own color. Click and ask.", "core_label": "Choose a subject", "core_sub": "click one below", "chat_title_default": "No subject selected", "chat_desc_default": "Choose a subject above, then type your question", "input_placeholder_default": "Type your question...", "send_btn": "Send", "usage_login_prompt": "Log in to start lessons", "curriculum_bajarildi": "completed", "level_test_btn": "Take level test", "lesson_start_btn": "Start", "auth_welcome_title": "Welcome", "auth_welcome_sub": "Log in to continue", "auth_signup_title": "Sign up", "google_btn": "Continue with Google", "or_divider": "or", "email_ph": "Email", "password_ph": "Password", "submit_login": "Log in", "submit_signup": "Sign up", "toggle_to_signup_pre": "No account?", "toggle_to_signup_link": "Sign up", "toggle_to_signin_pre": "Already have an account?", "toggle_to_signin_link": "Log in", "contact_title": "Contact", "contact_sub": "Have a question or suggestion? Send it our way", "contact_name_ph": "Your name", "contact_email_ph": "Email", "contact_msg_ph": "Your message...", "contact_submit": "Send", "upgrade_title": "You've used today's free limit", "upgrade_sub": "5 free lessons are available per day. Become a VIP for unlimited lessons.", "upgrade_btn": "Go VIP — $5/mo", "footer": "AI Academy — learn with artificial intelligence", "lang_label": "Language", "greeting": "Hello! I'm your AI tutor for {subject}. Where should we start? Type your question, or write \"I want to start from scratch.\""}, "zh": {"dir": "ltr", "nav_contact": "联系我们", "nav_install": "安装应用", "auth_login": "登录", "hero_eyebrow": "免费 • 全部学科 • AI驱动", "hero_title": "在这里学习所有学科", "hero_sub": "选择一个学科并提出问题 — AI老师会用简单易懂的语言逐步讲解。", "hint": "每个学科都有自己的颜色。点击并提问。", "core_label": "选择学科", "core_sub": "点击下方任意一个", "chat_title_default": "尚未选择学科", "chat_desc_default": "请先选择学科，然后输入您的问题", "input_placeholder_default": "输入您的问题...", "send_btn": "发送", "usage_login_prompt": "请登录以开始学习", "curriculum_bajarildi": "已完成", "level_test_btn": "进行水平测试", "lesson_start_btn": "开始", "auth_welcome_title": "欢迎", "auth_welcome_sub": "登录以继续", "auth_signup_title": "注册", "google_btn": "使用Google登录", "or_divider": "或", "email_ph": "电子邮箱", "password_ph": "密码", "submit_login": "登录", "submit_signup": "注册", "toggle_to_signup_pre": "还没有账户？", "toggle_to_signup_link": "立即注册", "toggle_to_signin_pre": "已有账户？", "toggle_to_signin_link": "登录", "contact_title": "联系我们", "contact_sub": "有问题或建议？请告诉我们", "contact_name_ph": "您的姓名", "contact_email_ph": "电子邮箱", "contact_msg_ph": "您的留言...", "contact_submit": "发送", "upgrade_title": "今日免费额度已用完", "upgrade_sub": "每天可享5节免费课程。成为VIP即可无限学习。", "upgrade_btn": "开通VIP — 每月$5", "footer": "AI Academy — 与人工智能一起学习", "lang_label": "语言", "greeting": "你好！我是你的{subject}AI老师。我们从哪里开始呢？请输入你的问题，或者输入\"我想从零开始\"。"}, "ja": {"dir": "ltr", "nav_contact": "お問い合わせ", "nav_install": "アプリをインストール", "auth_login": "ログイン", "hero_eyebrow": "無料 • 全教科 • AI搭載", "hero_title": "すべての教科をここで学ぶ", "hero_sub": "教科を選んで質問するだけ — AI講師がわかりやすく段階的に説明します。", "hint": "教科ごとに色が異なります。クリックして質問しましょう。", "core_label": "教科を選択", "core_sub": "下から選んでください", "chat_title_default": "教科が選択されていません", "chat_desc_default": "上で教科を選び、質問を入力してください", "input_placeholder_default": "質問を入力してください...", "send_btn": "送信", "usage_login_prompt": "レッスンを始めるにはログインしてください", "curriculum_bajarildi": "完了", "level_test_btn": "レベル診断を受ける", "lesson_start_btn": "開始", "auth_welcome_title": "ようこそ", "auth_welcome_sub": "続けるにはログインしてください", "auth_signup_title": "新規登録", "google_btn": "Googleでログイン", "or_divider": "または", "email_ph": "メールアドレス", "password_ph": "パスワード", "submit_login": "ログイン", "submit_signup": "登録", "toggle_to_signup_pre": "アカウントをお持ちでないですか？", "toggle_to_signup_link": "新規登録", "toggle_to_signin_pre": "すでにアカウントをお持ちですか？", "toggle_to_signin_link": "ログイン", "contact_title": "お問い合わせ", "contact_sub": "ご質問やご提案がありましたらお送りください", "contact_name_ph": "お名前", "contact_email_ph": "メールアドレス", "contact_msg_ph": "メッセージ...", "contact_submit": "送信", "upgrade_title": "本日の無料枠を使い切りました", "upgrade_sub": "1日5レッスンまで無料です。VIPになると無制限に学習できます。", "upgrade_btn": "VIPになる — 月$5", "footer": "AI Academy — 人工知能と一緒に学ぼう", "lang_label": "言語", "greeting": "こんにちは！私はあなたの{subject}のAI講師です。何から始めましょうか？質問を入力するか、「最初から始めたいです」と書いてください。"}, "ko": {"dir": "ltr", "nav_contact": "문의하기", "nav_install": "앱 설치", "auth_login": "로그인", "hero_eyebrow": "무료 • 전 과목 • AI 기반", "hero_title": "모든 과목을 한 곳에서 배우세요", "hero_sub": "과목을 선택하고 질문을 입력하세요 — AI 튜터가 단계별로 쉽게 설명해 드립니다.", "hint": "각 과목마다 고유한 색상이 있습니다. 클릭하고 질문하세요.", "core_label": "과목 선택", "core_sub": "아래에서 하나를 선택하세요", "chat_title_default": "선택된 과목 없음", "chat_desc_default": "위에서 과목을 선택한 후 질문을 입력하세요", "input_placeholder_default": "질문을 입력하세요...", "send_btn": "보내기", "usage_login_prompt": "수업을 시작하려면 로그인하세요", "curriculum_bajarildi": "완료", "level_test_btn": "레벨 테스트 응시", "lesson_start_btn": "시작", "auth_welcome_title": "환영합니다", "auth_welcome_sub": "계속하려면 로그인하세요", "auth_signup_title": "회원가입", "google_btn": "Google로 로그인", "or_divider": "또는", "email_ph": "이메일", "password_ph": "비밀번호", "submit_login": "로그인", "submit_signup": "회원가입", "toggle_to_signup_pre": "계정이 없으신가요?", "toggle_to_signup_link": "회원가입", "toggle_to_signin_pre": "이미 계정이 있으신가요?", "toggle_to_signin_link": "로그인", "contact_title": "문의하기", "contact_sub": "질문이나 제안이 있으시면 보내주세요", "contact_name_ph": "이름", "contact_email_ph": "이메일", "contact_msg_ph": "메시지...", "contact_submit": "보내기", "upgrade_title": "오늘의 무료 한도를 모두 사용했습니다", "upgrade_sub": "하루 5개의 무료 수업이 제공됩니다. VIP가 되어 무제한으로 이용하세요.", "upgrade_btn": "VIP 되기 — 월 $5", "footer": "AI Academy — 인공지능과 함께 배우세요", "lang_label": "언어", "greeting": "안녕하세요! 저는 당신의 {subject} AI 튜터입니다. 무엇부터 시작할까요? 질문을 입력하거나 \"처음부터 시작하고 싶어요\"라고 써주세요."}, "ar": {"dir": "rtl", "nav_contact": "تواصل معنا", "nav_install": "تثبيت التطبيق", "auth_login": "تسجيل الدخول", "hero_eyebrow": "مجاني • جميع المواد • مدعوم بالذكاء الاصطناعي", "hero_title": "تعلّم جميع المواد في مكان واحد", "hero_sub": "اختر مادة واطرح سؤالك — سيشرح لك المعلم الذكي خطوة بخطوة وبلغة بسيطة.", "hint": "لكل مادة لونها الخاص. اضغط واسأل.", "core_label": "اختر مادة", "core_sub": "اضغط على إحدى المواد أدناه", "chat_title_default": "لم يتم اختيار مادة", "chat_desc_default": "اختر مادة أعلاه، ثم اكتب سؤالك", "input_placeholder_default": "اكتب سؤالك...", "send_btn": "إرسال", "usage_login_prompt": "سجّل الدخول لبدء الدروس", "curriculum_bajarildi": "مكتمل", "level_test_btn": "حدّد مستواك", "lesson_start_btn": "ابدأ", "auth_welcome_title": "مرحباً بك", "auth_welcome_sub": "سجّل الدخول للمتابعة", "auth_signup_title": "إنشاء حساب", "google_btn": "المتابعة عبر Google", "or_divider": "أو", "email_ph": "البريد الإلكتروني", "password_ph": "كلمة المرور", "submit_login": "تسجيل الدخول", "submit_signup": "إنشاء حساب", "toggle_to_signup_pre": "ليس لديك حساب؟", "toggle_to_signup_link": "أنشئ حساباً", "toggle_to_signin_pre": "لديك حساب بالفعل؟", "toggle_to_signin_link": "تسجيل الدخول", "contact_title": "تواصل معنا", "contact_sub": "هل لديك سؤال أو اقتراح؟ أرسله لنا", "contact_name_ph": "اسمك", "contact_email_ph": "البريد الإلكتروني", "contact_msg_ph": "رسالتك...", "contact_submit": "إرسال", "upgrade_title": "لقد استنفدت الحد المجاني لليوم", "upgrade_sub": "يتوفر 5 دروس مجانية يومياً. اشترك في VIP للحصول على دروس غير محدودة.", "upgrade_btn": "اشترك في VIP — 5$/شهر", "footer": "AI Academy — تعلّم مع الذكاء الاصطناعي", "lang_label": "اللغة", "greeting": "مرحباً! أنا معلمك الذكي لمادة {subject}. من أين نبدأ؟ اكتب سؤالك، أو اكتب \"أريد أن أبدأ من الصفر\"."}};
+const I18N = {"uz": {"dir": "ltr", "nav_contact": "Aloqa", "nav_install": "Ilovani o'rnatish", "auth_login": "Kirish", "hero_eyebrow": "Bepul • Barcha fanlar • AI bilan", "hero_title": "Barcha fanlarni bitta joyda o'rganing", "hero_sub": "Fanni tanlang, savolingizni yozing — AI o'qituvchi sizga qadam-baqadam, tushunarli tilda tushuntiradi.", "hint": "Har bir fan — o'z rangi bilan. Bosing va so'rang.", "core_label": "Fanni tanlang", "core_sub": "quyidan bittasini bosing", "chat_title_default": "Fan tanlanmagan", "chat_desc_default": "Yuqoridan fanni tanlang, so'ng savolingizni yozing", "input_placeholder_default": "Savolingizni yozing...", "send_btn": "Yuborish", "usage_login_prompt": "Darslarni boshlash uchun avval kiring", "curriculum_bajarildi": "bajarildi", "level_test_btn": "Darajangizni aniqlang", "lesson_start_btn": "Boshlash", "auth_welcome_title": "Xush kelibsiz", "auth_welcome_sub": "Davom etish uchun kiring", "auth_signup_title": "Ro'yxatdan o'tish", "google_btn": "Google orqali kirish", "or_divider": "yoki", "email_ph": "Email", "password_ph": "Parol", "submit_login": "Kirish", "submit_signup": "Ro'yxatdan o'tish", "toggle_to_signup_pre": "Hisobingiz yo'qmi?", "toggle_to_signup_link": "Ro'yxatdan o'ting", "toggle_to_signin_pre": "Hisobingiz bormi?", "toggle_to_signin_link": "Kiring", "contact_title": "Aloqa", "contact_sub": "Savol yoki taklifingiz bo'lsa, yozing", "contact_name_ph": "Ismingiz", "contact_email_ph": "Email", "contact_msg_ph": "Xabaringiz...", "contact_submit": "Yuborish", "upgrade_title": "Bugungi bepul limit tugadi", "upgrade_sub": "Kuniga 5 ta bepul dars mavjud. VIP a'zo bo'lib, cheksiz darslarga ega bo'ling.", "upgrade_btn": "VIP bo'lish — $5/oy", "footer": "AI Academy — sun'iy intellekt bilan o'rganing", "lang_label": "Til", "greeting": "Assalomu alaykum! Men sizning {subject} bo'yicha AI ustozingizman. Nimadan boshlaymiz? Savolingizni yozing yoki \"Noldan boshlamoqchiman\" deb yozing.", "leaderboard_title": "🏆 Reyting", "leaderboard_sub": "Eng ko'p ball to'plagan o'quvchilar", "nickname_prompt": "Reytingda ko'rinadigan ismingizni tanlang:", "nickname_ph": "Taxallusingiz", "save_btn": "Saqlash", "no_scores_yet": "Hali hech kim ball to'plamagan.", "anonymous": "Anonim", "progress_title": "📊 Progress", "progress_sub": "Ota-ona yoki o'qituvchi bilan ulashish uchun shu sahifani ko'rsating", "streak_label": "🔥 Streak", "days_word": "kun", "lessons_word": "dars", "modules_word": "modul", "recent_exams": "So'nggi imtihonlar", "no_exams_yet": "Hali imtihon topshirilmagan.", "level_test_word": "Daraja testi", "module_exam_word": "-modul imtihoni", "schedule_title": "🗓 Haftalik dars rejasi", "schedule_sub": "Har bir kunga qaysi fan(lar)dan shug'ullanishni belgilang", "day1": "Dushanba", "day2": "Seshanba", "day3": "Chorshanba", "day4": "Payshanba", "day5": "Juma", "day6": "Shanba", "day0": "Yakshanba", "calendar_title": "📅 Faollik tarixi", "cal_prev": "‹ Oldingi", "cal_next": "Keyingi ›", "m1": "Yanvar", "m2": "Fevral", "m3": "Mart", "m4": "Aprel", "m5": "May", "m6": "Iyun", "m7": "Iyul", "m8": "Avgust", "m9": "Sentabr", "m10": "Oktabr", "m11": "Noyabr", "m12": "Dekabr", "cert_title": "Sertifikat", "cert_org": "AI Academy", "cert_print_btn": "Chop etish / PDF saqlash", "your_level": "Darajangiz:", "correct_word": "to'g'ri", "recommendation": "Tavsiya:", "start_from_module": "-moduldan boshlang. Darslar ro'yxatida shu modul avtomatik ochiladi.", "exam_passed": "✅ Imtihon topshirildi! (", "exam_failed": "❌ O'tolmadingiz (", "module_now_open": "-modul endi ochildi.", "course_complete_title": "🏆 Tabriklaymiz! Kurs yakunlandi!", "course_complete_sub": "Endi sertifikatingizni olishingiz mumkin.", "need_min_score": "Kamida 21/30 to'g'ri kerak. Quyida xato javoblaringiz tahlili bilan berilgan — ko'rib chiqib, qayta urining.", "final_exam_btn": "Yakuniy imtihon — sertifikat olish", "open_module_btn_suffix": "-modulni ochish uchun imtihon", "usage_today_used": "Bugun ", "usage_free_lessons": " bepul dars ishlatildi", "usage_vip_unlimited": "✦ VIP a'zosiz — cheksiz darslar", "cert_body_template": "Ushbu sertifikat {name} {subject} fani bo'yicha barcha 7 modulni muvaffaqiyatli yakunlaganini tasdiqlaydi.", "level_beginner": "Boshlang'ich", "level_intermediate": "O'rta", "level_advanced": "Yuqori", "level_test_title": "{subject} bo'yicha daraja aniqlash testi (25 savol)", "module_exam_title": "{n}-modul imtihoni: {module} (30 savol, 45 daqiqa)", "your_answer_word": "Sizning javobingiz:", "correct_answer_word": "To'g'ri javob:", "analyzing_word": "Tahlil tayyorlanmoqda..."}, "ru": {"dir": "ltr", "nav_contact": "Контакты", "nav_install": "Установить приложение", "auth_login": "Войти", "hero_eyebrow": "Бесплатно • Все предметы • С ИИ", "hero_title": "Изучайте все предметы в одном месте", "hero_sub": "Выберите предмет, задайте вопрос — ИИ-учитель объяснит вам шаг за шагом, понятным языком.", "hint": "У каждого предмета свой цвет. Нажмите и спросите.", "core_label": "Выберите предмет", "core_sub": "нажмите на один из них", "chat_title_default": "Предмет не выбран", "chat_desc_default": "Выберите предмет выше, затем напишите вопрос", "input_placeholder_default": "Напишите ваш вопрос...", "send_btn": "Отправить", "usage_login_prompt": "Войдите, чтобы начать уроки", "curriculum_bajarildi": "пройдено", "level_test_btn": "Определить уровень", "lesson_start_btn": "Начать", "auth_welcome_title": "Добро пожаловать", "auth_welcome_sub": "Войдите, чтобы продолжить", "auth_signup_title": "Регистрация", "google_btn": "Войти через Google", "or_divider": "или", "email_ph": "Email", "password_ph": "Пароль", "submit_login": "Войти", "submit_signup": "Зарегистрироваться", "toggle_to_signup_pre": "Нет аккаунта?", "toggle_to_signup_link": "Зарегистрируйтесь", "toggle_to_signin_pre": "Уже есть аккаунт?", "toggle_to_signin_link": "Войдите", "contact_title": "Контакты", "contact_sub": "Есть вопрос или предложение? Напишите нам", "contact_name_ph": "Ваше имя", "contact_email_ph": "Email", "contact_msg_ph": "Ваше сообщение...", "contact_submit": "Отправить", "upgrade_title": "Бесплатный лимит на сегодня исчерпан", "upgrade_sub": "Доступно 5 бесплатных уроков в день. Станьте VIP для неограниченного доступа.", "upgrade_btn": "Стать VIP — $5/мес", "footer": "AI Academy — учитесь вместе с искусственным интеллектом", "lang_label": "Язык", "greeting": "Здравствуйте! Я ваш ИИ-репетитор по предмету «{subject}». С чего начнём? Напишите свой вопрос, или напишите «Хочу начать с нуля».", "leaderboard_title": "🏆 Рейтинг", "leaderboard_sub": "Ученики с наибольшим количеством баллов", "nickname_prompt": "Выберите имя, отображаемое в рейтинге:", "nickname_ph": "Ваш псевдоним", "save_btn": "Сохранить", "no_scores_yet": "Пока никто не набрал баллов.", "anonymous": "Аноним", "progress_title": "📊 Прогресс", "progress_sub": "Покажите эту страницу родителю или учителю", "streak_label": "🔥 Серия", "days_word": "дн.", "lessons_word": "урок", "modules_word": "модуль", "recent_exams": "Последние экзамены", "no_exams_yet": "Экзамены пока не сдавались.", "level_test_word": "Тест на уровень", "module_exam_word": "-й модуль (экзамен)", "schedule_title": "🗓 Недельное расписание", "schedule_sub": "Отметьте, какими предметами заниматься в какой день", "day1": "Понедельник", "day2": "Вторник", "day3": "Среда", "day4": "Четверг", "day5": "Пятница", "day6": "Суббота", "day0": "Воскресенье", "calendar_title": "📅 История активности", "cal_prev": "‹ Пред.", "cal_next": "След. ›", "m1": "Январь", "m2": "Февраль", "m3": "Март", "m4": "Апрель", "m5": "Май", "m6": "Июнь", "m7": "Июль", "m8": "Август", "m9": "Сентябрь", "m10": "Октябрь", "m11": "Ноябрь", "m12": "Декабрь", "cert_title": "Сертификат", "cert_org": "AI Academy", "cert_print_btn": "Печать / Сохранить PDF", "your_level": "Ваш уровень:", "correct_word": "верно", "recommendation": "Рекомендация:", "start_from_module": "-го модуля. В списке уроков этот модуль откроется автоматически.", "exam_passed": "✅ Экзамен сдан! (", "exam_failed": "❌ Не сдано (", "module_now_open": "-й модуль теперь открыт.", "course_complete_title": "🏆 Поздравляем! Курс завершён!", "course_complete_sub": "Теперь вы можете получить сертификат.", "need_min_score": "Нужно минимум 21/30. Ниже разбор ваших ошибок — изучите и попробуйте снова.", "final_exam_btn": "Финальный экзамен — получить сертификат", "open_module_btn_suffix": "-й модуль — экзамен для открытия", "usage_today_used": "Сегодня использовано ", "usage_free_lessons": " бесплатных уроков", "usage_vip_unlimited": "✦ Вы VIP — уроки без ограничений", "cert_body_template": "Этот сертификат подтверждает, что {name} успешно завершил(а) все 7 модулей по предмету «{subject}».", "level_beginner": "Начальный", "level_intermediate": "Средний", "level_advanced": "Высокий", "level_test_title": "Тест на уровень по предмету «{subject}» (25 вопросов)", "module_exam_title": "Экзамен модуля {n}: {module} (30 вопросов, 45 минут)", "your_answer_word": "Ваш ответ:", "correct_answer_word": "Правильный ответ:", "analyzing_word": "Готовим разбор..."}, "en": {"dir": "ltr", "nav_contact": "Contact", "nav_install": "Install app", "auth_login": "Log in", "hero_eyebrow": "Free • All subjects • Powered by AI", "hero_title": "Learn every subject in one place", "hero_sub": "Pick a subject and ask your question — your AI tutor explains it step by step, in plain language.", "hint": "Each subject has its own color. Click and ask.", "core_label": "Choose a subject", "core_sub": "click one below", "chat_title_default": "No subject selected", "chat_desc_default": "Choose a subject above, then type your question", "input_placeholder_default": "Type your question...", "send_btn": "Send", "usage_login_prompt": "Log in to start lessons", "curriculum_bajarildi": "completed", "level_test_btn": "Take level test", "lesson_start_btn": "Start", "auth_welcome_title": "Welcome", "auth_welcome_sub": "Log in to continue", "auth_signup_title": "Sign up", "google_btn": "Continue with Google", "or_divider": "or", "email_ph": "Email", "password_ph": "Password", "submit_login": "Log in", "submit_signup": "Sign up", "toggle_to_signup_pre": "No account?", "toggle_to_signup_link": "Sign up", "toggle_to_signin_pre": "Already have an account?", "toggle_to_signin_link": "Log in", "contact_title": "Contact", "contact_sub": "Have a question or suggestion? Send it our way", "contact_name_ph": "Your name", "contact_email_ph": "Email", "contact_msg_ph": "Your message...", "contact_submit": "Send", "upgrade_title": "You've used today's free limit", "upgrade_sub": "5 free lessons are available per day. Become a VIP for unlimited lessons.", "upgrade_btn": "Go VIP — $5/mo", "footer": "AI Academy — learn with artificial intelligence", "lang_label": "Language", "greeting": "Hello! I'm your AI tutor for {subject}. Where should we start? Type your question, or write \"I want to start from scratch.\"", "leaderboard_title": "🏆 Leaderboard", "leaderboard_sub": "Students with the most points", "nickname_prompt": "Choose the name shown on the leaderboard:", "nickname_ph": "Your nickname", "save_btn": "Save", "no_scores_yet": "No one has scored points yet.", "anonymous": "Anonymous", "progress_title": "📊 Progress", "progress_sub": "Show this page to a parent or teacher", "streak_label": "🔥 Streak", "days_word": "days", "lessons_word": "lessons", "modules_word": "modules", "recent_exams": "Recent exams", "no_exams_yet": "No exams taken yet.", "level_test_word": "Level test", "module_exam_word": " module exam", "schedule_title": "🗓 Weekly study plan", "schedule_sub": "Mark which subject(s) to study on each day", "day1": "Monday", "day2": "Tuesday", "day3": "Wednesday", "day4": "Thursday", "day5": "Friday", "day6": "Saturday", "day0": "Sunday", "calendar_title": "📅 Activity history", "cal_prev": "‹ Prev", "cal_next": "Next ›", "m1": "January", "m2": "February", "m3": "March", "m4": "April", "m5": "May", "m6": "June", "m7": "July", "m8": "August", "m9": "September", "m10": "October", "m11": "November", "m12": "December", "cert_title": "Certificate", "cert_org": "AI Academy", "cert_print_btn": "Print / Save as PDF", "your_level": "Your level:", "correct_word": "correct", "recommendation": "Recommendation: start from module ", "start_from_module": ". This module will open automatically in your lesson list.", "exam_passed": "✅ Exam passed! (", "exam_failed": "❌ You did not pass (", "module_now_open": " module is now unlocked.", "course_complete_title": "🏆 Congratulations! Course complete!", "course_complete_sub": "You can now get your certificate.", "need_min_score": "You need at least 21/30. Below is a review of your mistakes — study it and try again.", "final_exam_btn": "Final exam — get certificate", "open_module_btn_suffix": " module exam to unlock", "usage_today_used": "Today you've used ", "usage_free_lessons": " free lessons", "usage_vip_unlimited": "✦ You're VIP — unlimited lessons", "cert_body_template": "This certifies that {name} has successfully completed all 7 modules of {subject}.", "level_beginner": "Beginner", "level_intermediate": "Intermediate", "level_advanced": "Advanced", "level_test_title": "{subject} level test (25 questions)", "module_exam_title": "Module {n} exam: {module} (30 questions, 45 minutes)", "your_answer_word": "Your answer:", "correct_answer_word": "Correct answer:", "analyzing_word": "Preparing analysis..."}, "zh": {"dir": "ltr", "nav_contact": "联系我们", "nav_install": "安装应用", "auth_login": "登录", "hero_eyebrow": "免费 • 全部学科 • AI驱动", "hero_title": "在这里学习所有学科", "hero_sub": "选择一个学科并提出问题 — AI老师会用简单易懂的语言逐步讲解。", "hint": "每个学科都有自己的颜色。点击并提问。", "core_label": "选择学科", "core_sub": "点击下方任意一个", "chat_title_default": "尚未选择学科", "chat_desc_default": "请先选择学科，然后输入您的问题", "input_placeholder_default": "输入您的问题...", "send_btn": "发送", "usage_login_prompt": "请登录以开始学习", "curriculum_bajarildi": "已完成", "level_test_btn": "进行水平测试", "lesson_start_btn": "开始", "auth_welcome_title": "欢迎", "auth_welcome_sub": "登录以继续", "auth_signup_title": "注册", "google_btn": "使用Google登录", "or_divider": "或", "email_ph": "电子邮箱", "password_ph": "密码", "submit_login": "登录", "submit_signup": "注册", "toggle_to_signup_pre": "还没有账户？", "toggle_to_signup_link": "立即注册", "toggle_to_signin_pre": "已有账户？", "toggle_to_signin_link": "登录", "contact_title": "联系我们", "contact_sub": "有问题或建议？请告诉我们", "contact_name_ph": "您的姓名", "contact_email_ph": "电子邮箱", "contact_msg_ph": "您的留言...", "contact_submit": "发送", "upgrade_title": "今日免费额度已用完", "upgrade_sub": "每天可享5节免费课程。成为VIP即可无限学习。", "upgrade_btn": "开通VIP — 每月$5", "footer": "AI Academy — 与人工智能一起学习", "lang_label": "语言", "greeting": "你好！我是你的{subject}AI老师。我们从哪里开始呢？请输入你的问题，或者输入\"我想从零开始\"。", "leaderboard_title": "🏆 排行榜", "leaderboard_sub": "得分最多的学生", "nickname_prompt": "选择在排行榜上显示的名字：", "nickname_ph": "你的昵称", "save_btn": "保存", "no_scores_yet": "还没有人获得积分。", "anonymous": "匿名", "progress_title": "📊 进度", "progress_sub": "将此页面展示给家长或老师", "streak_label": "🔥 连续天数", "days_word": "天", "lessons_word": "课", "modules_word": "模块", "recent_exams": "最近的考试", "no_exams_yet": "尚未参加过考试。", "level_test_word": "水平测试", "module_exam_word": "模块考试", "schedule_title": "🗓 每周学习计划", "schedule_sub": "标记每天要学习的科目", "day1": "星期一", "day2": "星期二", "day3": "星期三", "day4": "星期四", "day5": "星期五", "day6": "星期六", "day0": "星期日", "calendar_title": "📅 活动历史", "cal_prev": "‹ 上个月", "cal_next": "下个月 ›", "m1": "一月", "m2": "二月", "m3": "三月", "m4": "四月", "m5": "五月", "m6": "六月", "m7": "七月", "m8": "八月", "m9": "九月", "m10": "十月", "m11": "十一月", "m12": "十二月", "cert_title": "证书", "cert_org": "AI Academy", "cert_print_btn": "打印/保存为PDF", "your_level": "你的水平：", "correct_word": "正确", "recommendation": "建议从第", "start_from_module": "模块开始，课程列表中该模块将自动解锁。", "exam_passed": "✅ 考试通过！（", "exam_failed": "❌ 未通过（", "module_now_open": "模块现已解锁。", "course_complete_title": "🏆 恭喜！课程已完成！", "course_complete_sub": "现在您可以领取证书了。", "need_min_score": "至少需要21/30分。以下是您的错题分析——请复习后再试一次。", "final_exam_btn": "期末考试——获取证书", "open_module_btn_suffix": "模块解锁考试", "usage_today_used": "今天已使用 ", "usage_free_lessons": " 节免费课程", "usage_vip_unlimited": "✦ 您是VIP会员——无限学习", "cert_body_template": "本证书证明 {name} 已成功完成{subject}的全部7个模块。", "level_beginner": "初级", "level_intermediate": "中级", "level_advanced": "高级", "level_test_title": "{subject}水平测试（25题）", "module_exam_title": "第{n}模块考试：{module}（30题，45分钟）", "your_answer_word": "你的答案：", "correct_answer_word": "正确答案：", "analyzing_word": "正在准备分析..."}, "ja": {"dir": "ltr", "nav_contact": "お問い合わせ", "nav_install": "アプリをインストール", "auth_login": "ログイン", "hero_eyebrow": "無料 • 全教科 • AI搭載", "hero_title": "すべての教科をここで学ぶ", "hero_sub": "教科を選んで質問するだけ — AI講師がわかりやすく段階的に説明します。", "hint": "教科ごとに色が異なります。クリックして質問しましょう。", "core_label": "教科を選択", "core_sub": "下から選んでください", "chat_title_default": "教科が選択されていません", "chat_desc_default": "上で教科を選び、質問を入力してください", "input_placeholder_default": "質問を入力してください...", "send_btn": "送信", "usage_login_prompt": "レッスンを始めるにはログインしてください", "curriculum_bajarildi": "完了", "level_test_btn": "レベル診断を受ける", "lesson_start_btn": "開始", "auth_welcome_title": "ようこそ", "auth_welcome_sub": "続けるにはログインしてください", "auth_signup_title": "新規登録", "google_btn": "Googleでログイン", "or_divider": "または", "email_ph": "メールアドレス", "password_ph": "パスワード", "submit_login": "ログイン", "submit_signup": "登録", "toggle_to_signup_pre": "アカウントをお持ちでないですか？", "toggle_to_signup_link": "新規登録", "toggle_to_signin_pre": "すでにアカウントをお持ちですか？", "toggle_to_signin_link": "ログイン", "contact_title": "お問い合わせ", "contact_sub": "ご質問やご提案がありましたらお送りください", "contact_name_ph": "お名前", "contact_email_ph": "メールアドレス", "contact_msg_ph": "メッセージ...", "contact_submit": "送信", "upgrade_title": "本日の無料枠を使い切りました", "upgrade_sub": "1日5レッスンまで無料です。VIPになると無制限に学習できます。", "upgrade_btn": "VIPになる — 月$5", "footer": "AI Academy — 人工知能と一緒に学ぼう", "lang_label": "言語", "greeting": "こんにちは！私はあなたの{subject}のAI講師です。何から始めましょうか？質問を入力するか、「最初から始めたいです」と書いてください。", "leaderboard_title": "🏆 ランキング", "leaderboard_sub": "最もポイントを獲得した生徒", "nickname_prompt": "ランキングに表示する名前を選んでください：", "nickname_ph": "ニックネーム", "save_btn": "保存", "no_scores_yet": "まだ誰もポイントを獲得していません。", "anonymous": "匿名", "progress_title": "📊 進捗", "progress_sub": "このページを保護者や先生に見せてください", "streak_label": "🔥 連続記録", "days_word": "日", "lessons_word": "レッスン", "modules_word": "モジュール", "recent_exams": "最近の試験", "no_exams_yet": "まだ試験を受けていません。", "level_test_word": "レベル診断", "module_exam_word": "モジュール試験", "schedule_title": "🗓 週間学習プラン", "schedule_sub": "各曜日に学習する教科を選んでください", "day1": "月曜日", "day2": "火曜日", "day3": "水曜日", "day4": "木曜日", "day5": "金曜日", "day6": "土曜日", "day0": "日曜日", "calendar_title": "📅 活動履歴", "cal_prev": "‹ 前月", "cal_next": "次月 ›", "m1": "1月", "m2": "2月", "m3": "3月", "m4": "4月", "m5": "5月", "m6": "6月", "m7": "7月", "m8": "8月", "m9": "9月", "m10": "10月", "m11": "11月", "m12": "12月", "cert_title": "修了証", "cert_org": "AI Academy", "cert_print_btn": "印刷 / PDFで保存", "your_level": "あなたのレベル：", "correct_word": "正解", "recommendation": "モジュール", "start_from_module": "から始めることをお勧めします。レッスン一覧で自動的に開放されます。", "exam_passed": "✅ 試験に合格しました！（", "exam_failed": "❌ 不合格でした（", "module_now_open": "モジュールが解放されました。", "course_complete_title": "🏆 おめでとうございます！コース修了！", "course_complete_sub": "修了証を受け取ることができます。", "need_min_score": "最低21/30が必要です。以下の間違いの分析を確認し、再挑戦してください。", "final_exam_btn": "最終試験 — 修了証を取得", "open_module_btn_suffix": "モジュール解放試験", "usage_today_used": "本日 ", "usage_free_lessons": " 回の無料レッスンを使用", "usage_vip_unlimited": "✦ VIP会員 — レッスン無制限", "cert_body_template": "この証明書は、{name}様が{subject}の全7モジュールを修了したことを証明します。", "level_beginner": "初級", "level_intermediate": "中級", "level_advanced": "上級", "level_test_title": "{subject}レベル診断（25問）", "module_exam_title": "モジュール{n}試験：{module}（30問、45分）", "your_answer_word": "あなたの回答：", "correct_answer_word": "正解：", "analyzing_word": "分析を準備中..."}, "ko": {"dir": "ltr", "nav_contact": "문의하기", "nav_install": "앱 설치", "auth_login": "로그인", "hero_eyebrow": "무료 • 전 과목 • AI 기반", "hero_title": "모든 과목을 한 곳에서 배우세요", "hero_sub": "과목을 선택하고 질문을 입력하세요 — AI 튜터가 단계별로 쉽게 설명해 드립니다.", "hint": "각 과목마다 고유한 색상이 있습니다. 클릭하고 질문하세요.", "core_label": "과목 선택", "core_sub": "아래에서 하나를 선택하세요", "chat_title_default": "선택된 과목 없음", "chat_desc_default": "위에서 과목을 선택한 후 질문을 입력하세요", "input_placeholder_default": "질문을 입력하세요...", "send_btn": "보내기", "usage_login_prompt": "수업을 시작하려면 로그인하세요", "curriculum_bajarildi": "완료", "level_test_btn": "레벨 테스트 응시", "lesson_start_btn": "시작", "auth_welcome_title": "환영합니다", "auth_welcome_sub": "계속하려면 로그인하세요", "auth_signup_title": "회원가입", "google_btn": "Google로 로그인", "or_divider": "또는", "email_ph": "이메일", "password_ph": "비밀번호", "submit_login": "로그인", "submit_signup": "회원가입", "toggle_to_signup_pre": "계정이 없으신가요?", "toggle_to_signup_link": "회원가입", "toggle_to_signin_pre": "이미 계정이 있으신가요?", "toggle_to_signin_link": "로그인", "contact_title": "문의하기", "contact_sub": "질문이나 제안이 있으시면 보내주세요", "contact_name_ph": "이름", "contact_email_ph": "이메일", "contact_msg_ph": "메시지...", "contact_submit": "보내기", "upgrade_title": "오늘의 무료 한도를 모두 사용했습니다", "upgrade_sub": "하루 5개의 무료 수업이 제공됩니다. VIP가 되어 무제한으로 이용하세요.", "upgrade_btn": "VIP 되기 — 월 $5", "footer": "AI Academy — 인공지능과 함께 배우세요", "lang_label": "언어", "greeting": "안녕하세요! 저는 당신의 {subject} AI 튜터입니다. 무엇부터 시작할까요? 질문을 입력하거나 \"처음부터 시작하고 싶어요\"라고 써주세요.", "leaderboard_title": "🏆 순위표", "leaderboard_sub": "가장 많은 포인트를 획득한 학생", "nickname_prompt": "순위표에 표시될 이름을 선택하세요:", "nickname_ph": "닉네임", "save_btn": "저장", "no_scores_yet": "아직 포인트를 획득한 사람이 없습니다.", "anonymous": "익명", "progress_title": "📊 진행 상황", "progress_sub": "이 페이지를 부모님이나 선생님께 보여주세요", "streak_label": "🔥 연속 기록", "days_word": "일", "lessons_word": "수업", "modules_word": "모듈", "recent_exams": "최근 시험", "no_exams_yet": "아직 시험을 본 적이 없습니다.", "level_test_word": "레벨 테스트", "module_exam_word": " 모듈 시험", "schedule_title": "🗓 주간 학습 계획", "schedule_sub": "각 요일에 공부할 과목을 선택하세요", "day1": "월요일", "day2": "화요일", "day3": "수요일", "day4": "목요일", "day5": "금요일", "day6": "토요일", "day0": "일요일", "calendar_title": "📅 활동 기록", "cal_prev": "‹ 이전", "cal_next": "다음 ›", "m1": "1월", "m2": "2월", "m3": "3월", "m4": "4월", "m5": "5월", "m6": "6월", "m7": "7월", "m8": "8월", "m9": "9월", "m10": "10월", "m11": "11월", "m12": "12월", "cert_title": "수료증", "cert_org": "AI Academy", "cert_print_btn": "인쇄 / PDF로 저장", "your_level": "당신의 레벨:", "correct_word": "정답", "recommendation": "추천: ", "start_from_module": "모듈부터 시작하세요. 수업 목록에서 자동으로 열립니다.", "exam_passed": "✅ 시험 통과! (", "exam_failed": "❌ 불합격 (", "module_now_open": " 모듈이 열렸습니다.", "course_complete_title": "🏆 축하합니다! 과정을 완료했습니다!", "course_complete_sub": "이제 수료증을 받을 수 있습니다.", "need_min_score": "최소 21/30점이 필요합니다. 아래 오답 분석을 확인하고 다시 시도하세요.", "final_exam_btn": "최종 시험 — 수료증 받기", "open_module_btn_suffix": " 모듈 개방 시험", "usage_today_used": "오늘 ", "usage_free_lessons": "개의 무료 수업을 사용했습니다", "usage_vip_unlimited": "✦ VIP 회원 — 무제한 수업", "cert_body_template": "이 수료증은 {name}님이 {subject} 과목의 전체 7개 모듈을 성공적으로 완료했음을 증명합니다.", "level_beginner": "초급", "level_intermediate": "중급", "level_advanced": "고급", "level_test_title": "{subject} 레벨 테스트 (25문항)", "module_exam_title": "{n}모듈 시험: {module} (30문항, 45분)", "your_answer_word": "당신의 답변:", "correct_answer_word": "정답:", "analyzing_word": "분석 준비 중..."}, "ar": {"dir": "rtl", "nav_contact": "تواصل معنا", "nav_install": "تثبيت التطبيق", "auth_login": "تسجيل الدخول", "hero_eyebrow": "مجاني • جميع المواد • مدعوم بالذكاء الاصطناعي", "hero_title": "تعلّم جميع المواد في مكان واحد", "hero_sub": "اختر مادة واطرح سؤالك — سيشرح لك المعلم الذكي خطوة بخطوة وبلغة بسيطة.", "hint": "لكل مادة لونها الخاص. اضغط واسأل.", "core_label": "اختر مادة", "core_sub": "اضغط على إحدى المواد أدناه", "chat_title_default": "لم يتم اختيار مادة", "chat_desc_default": "اختر مادة أعلاه، ثم اكتب سؤالك", "input_placeholder_default": "اكتب سؤالك...", "send_btn": "إرسال", "usage_login_prompt": "سجّل الدخول لبدء الدروس", "curriculum_bajarildi": "مكتمل", "level_test_btn": "حدّد مستواك", "lesson_start_btn": "ابدأ", "auth_welcome_title": "مرحباً بك", "auth_welcome_sub": "سجّل الدخول للمتابعة", "auth_signup_title": "إنشاء حساب", "google_btn": "المتابعة عبر Google", "or_divider": "أو", "email_ph": "البريد الإلكتروني", "password_ph": "كلمة المرور", "submit_login": "تسجيل الدخول", "submit_signup": "إنشاء حساب", "toggle_to_signup_pre": "ليس لديك حساب؟", "toggle_to_signup_link": "أنشئ حساباً", "toggle_to_signin_pre": "لديك حساب بالفعل؟", "toggle_to_signin_link": "تسجيل الدخول", "contact_title": "تواصل معنا", "contact_sub": "هل لديك سؤال أو اقتراح؟ أرسله لنا", "contact_name_ph": "اسمك", "contact_email_ph": "البريد الإلكتروني", "contact_msg_ph": "رسالتك...", "contact_submit": "إرسال", "upgrade_title": "لقد استنفدت الحد المجاني لليوم", "upgrade_sub": "يتوفر 5 دروس مجانية يومياً. اشترك في VIP للحصول على دروس غير محدودة.", "upgrade_btn": "اشترك في VIP — 5$/شهر", "footer": "AI Academy — تعلّم مع الذكاء الاصطناعي", "lang_label": "اللغة", "greeting": "مرحباً! أنا معلمك الذكي لمادة {subject}. من أين نبدأ؟ اكتب سؤالك، أو اكتب \"أريد أن أبدأ من الصفر\".", "leaderboard_title": "🏆 لوحة المتصدرين", "leaderboard_sub": "الطلاب الأعلى نقاطاً", "nickname_prompt": "اختر الاسم الذي سيظهر في لوحة المتصدرين:", "nickname_ph": "اسمك المستعار", "save_btn": "حفظ", "no_scores_yet": "لم يحصل أحد على نقاط بعد.", "anonymous": "مجهول", "progress_title": "📊 التقدم", "progress_sub": "اعرض هذه الصفحة على ولي الأمر أو المعلم", "streak_label": "🔥 سلسلة الأيام", "days_word": "يوم", "lessons_word": "درس", "modules_word": "وحدة", "recent_exams": "آخر الاختبارات", "no_exams_yet": "لم يتم إجراء أي اختبار بعد.", "level_test_word": "اختبار تحديد المستوى", "module_exam_word": " اختبار الوحدة", "schedule_title": "🗓 الجدول الأسبوعي", "schedule_sub": "حدد المواد التي ستدرسها في كل يوم", "day1": "الاثنين", "day2": "الثلاثاء", "day3": "الأربعاء", "day4": "الخميس", "day5": "الجمعة", "day6": "السبت", "day0": "الأحد", "calendar_title": "📅 سجل النشاط", "cal_prev": "‹ السابق", "cal_next": "التالي ›", "m1": "يناير", "m2": "فبراير", "m3": "مارس", "m4": "أبريل", "m5": "مايو", "m6": "يونيو", "m7": "يوليو", "m8": "أغسطس", "m9": "سبتمبر", "m10": "أكتوبر", "m11": "نوفمبر", "m12": "ديسمبر", "cert_title": "شهادة", "cert_org": "AI Academy", "cert_print_btn": "طباعة / حفظ كملف PDF", "your_level": "مستواك:", "correct_word": "صحيح", "recommendation": "التوصية: ابدأ من الوحدة ", "start_from_module": ". ستُفتح هذه الوحدة تلقائياً في قائمة الدروس.", "exam_passed": "✅ تم اجتياز الاختبار! (", "exam_failed": "❌ لم تنجح (", "module_now_open": " الوحدة مفتوحة الآن.", "course_complete_title": "🏆 تهانينا! تم إكمال الدورة!", "course_complete_sub": "يمكنك الآن الحصول على شهادتك.", "need_min_score": "تحتاج إلى 21/30 على الأقل. فيما يلي تحليل لأخطائك — راجعها وحاول مرة أخرى.", "final_exam_btn": "الاختبار النهائي — الحصول على الشهادة", "open_module_btn_suffix": " اختبار فتح الوحدة", "usage_today_used": "اليوم استخدمت ", "usage_free_lessons": " دروس مجانية", "usage_vip_unlimited": "✦ أنت عضو VIP — دروس غير محدودة", "cert_body_template": "تشهد هذه الشهادة بأن {name} قد أكمل بنجاح جميع الوحدات السبع لمادة {subject}.", "level_beginner": "مبتدئ", "level_intermediate": "متوسط", "level_advanced": "متقدم", "level_test_title": "اختبار تحديد المستوى لمادة {subject} (25 سؤالاً)", "module_exam_title": "اختبار الوحدة {n}: {module} (30 سؤالاً، 45 دقيقة)", "your_answer_word": "إجابتك:", "correct_answer_word": "الإجابة الصحيحة:", "analyzing_word": "جارٍ تحضير التحليل..."}};
 const SUBJECTS_I18N = {"uz": {"coding": {"label": "Kodlash", "desc": "Dasturlash asoslarini o'rgatuvchi AI ustoz"}, "math": {"label": "Matematika", "desc": "Matematik tushunchalarni asosdan tushuntiruvchi AI ustoz"}, "physics": {"label": "Fizika", "desc": "Fizik hodisalarni tushunarli tilda tushuntiruvchi AI ustoz"}, "chemistry": {"label": "Kimyo", "desc": "Kimyoviy jarayonlarni sodda tilda tushuntiruvchi AI ustoz"}, "biology": {"label": "Biologiya", "desc": "Tirik tabiat sirlarini tushuntiruvchi AI ustoz"}, "psychology": {"label": "Psixologiya", "desc": "Inson xatti-harakati va ongini tushuntiruvchi AI ustoz"}}, "ru": {"coding": {"label": "Программирование", "desc": "ИИ-учитель, обучающий основам программирования"}, "math": {"label": "Математика", "desc": "ИИ-учитель, объясняющий математику с основ"}, "physics": {"label": "Физика", "desc": "ИИ-учитель, объясняющий физические явления понятным языком"}, "chemistry": {"label": "Химия", "desc": "ИИ-учитель, объясняющий химические процессы простым языком"}, "biology": {"label": "Биология", "desc": "ИИ-учитель, раскрывающий тайны живой природы"}, "psychology": {"label": "Психология", "desc": "ИИ-учитель о поведении и сознании человека"}}, "en": {"coding": {"label": "Coding", "desc": "An AI tutor that teaches programming fundamentals"}, "math": {"label": "Math", "desc": "An AI tutor that explains math from the ground up"}, "physics": {"label": "Physics", "desc": "An AI tutor that explains physical phenomena clearly"}, "chemistry": {"label": "Chemistry", "desc": "An AI tutor that explains chemical processes simply"}, "biology": {"label": "Biology", "desc": "An AI tutor exploring the secrets of living nature"}, "psychology": {"label": "Psychology", "desc": "An AI tutor on human behavior and the mind"}}, "zh": {"coding": {"label": "编程", "desc": "教授编程基础的AI老师"}, "math": {"label": "数学", "desc": "从基础讲解数学概念的AI老师"}, "physics": {"label": "物理", "desc": "用通俗语言讲解物理现象的AI老师"}, "chemistry": {"label": "化学", "desc": "用简单语言讲解化学过程的AI老师"}, "biology": {"label": "生物", "desc": "讲解生命奥秘的AI老师"}, "psychology": {"label": "心理学", "desc": "讲解人类行为与心理的AI老师"}}, "ja": {"coding": {"label": "プログラミング", "desc": "プログラミングの基礎を教えるAI講師"}, "math": {"label": "数学", "desc": "基礎から数学を説明するAI講師"}, "physics": {"label": "物理", "desc": "物理現象をわかりやすく説明するAI講師"}, "chemistry": {"label": "化学", "desc": "化学反応をやさしく説明するAI講師"}, "biology": {"label": "生物学", "desc": "生命の神秘を解説するAI講師"}, "psychology": {"label": "心理学", "desc": "人間の行動と心について教えるAI講師"}}, "ko": {"coding": {"label": "코딩", "desc": "프로그래밍 기초를 가르치는 AI 튜터"}, "math": {"label": "수학", "desc": "기초부터 수학을 설명하는 AI 튜터"}, "physics": {"label": "물리", "desc": "물리 현상을 쉽게 설명하는 AI 튜터"}, "chemistry": {"label": "화학", "desc": "화학 과정을 쉽게 설명하는 AI 튜터"}, "biology": {"label": "생물", "desc": "생명의 신비를 탐구하는 AI 튜터"}, "psychology": {"label": "심리학", "desc": "인간의 행동과 마음에 관한 AI 튜터"}}, "ar": {"coding": {"label": "البرمجة", "desc": "معلم ذكاء اصطناعي يعلّم أساسيات البرمجة"}, "math": {"label": "الرياضيات", "desc": "معلم ذكاء اصطناعي يشرح الرياضيات من الأساس"}, "physics": {"label": "الفيزياء", "desc": "معلم ذكاء اصطناعي يشرح الظواهر الفيزيائية بوضوح"}, "chemistry": {"label": "الكيمياء", "desc": "معلم ذكاء اصطناعي يشرح العمليات الكيميائية ببساطة"}, "biology": {"label": "الأحياء", "desc": "معلم ذكاء اصطناعي يستكشف أسرار الطبيعة الحية"}, "psychology": {"label": "علم النفس", "desc": "معلم ذكاء اصطناعي عن سلوك الإنسان وعقله"}}};
 const LANG_ENGLISH_NAMES = {"uz": "Uzbek", "ru": "Russian", "en": "English", "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "ar": "Arabic"};
 SUBJECTS_I18N['uz']['grammar'] = {"label": "Grammar", "desc": "Ingliz tili grammatikasini o'rgatuvchi AI ustoz"};
@@ -1764,7 +1831,7 @@ async function renderCurriculum(subjectId){
       examRow.style.marginTop = '6px';
       const examBtn = document.createElement('button');
       examBtn.className = 'level-btn';
-      examBtn.textContent = moduleNum === 7 ? 'Yakuniy imtihon — sertifikat olish' : ((moduleNum + 1) + '-modulni ochish uchun imtihon');
+      examBtn.textContent = moduleNum === 7 ? t('final_exam_btn') : ((moduleNum + 1) + t('open_module_btn_suffix'));
       examBtn.addEventListener('click', () => startModuleExam(subjectId, moduleNum));
       examRow.appendChild(examBtn);
       lessonsWrap.appendChild(examRow);
@@ -1808,9 +1875,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -1882,15 +1949,15 @@ function updateUsageBanner(data){
   const banner = document.getElementById('usage-banner');
   if(!sb){ banner.textContent = ''; return; }
   if(!currentUser){
-    banner.textContent = 'Darslarni boshlash uchun avval kiring';
+    banner.textContent = t('usage_login_prompt');
     return;
   }
   if(data && data.is_vip){
-    banner.textContent = '✦ VIP a\'zosiz — cheksiz darslar';
+    banner.textContent = t('usage_vip_unlimited');
     return;
   }
   if(data){
-    banner.textContent = 'Bugun ' + data.lessons_used_today + '/' + data.daily_limit + ' bepul dars ishlatildi';
+    banner.textContent = t('usage_today_used') + data.lessons_used_today + '/' + data.daily_limit + t('usage_free_lessons');
   }
 }
 
@@ -2090,7 +2157,7 @@ async function startLevelTest(subjectId){
 
   section.style.display = 'block';
   section.scrollIntoView({ behavior:'smooth', block:'start' });
-  document.getElementById('level-quiz-title').textContent = subject.label + ' bo\'yicha daraja aniqlash testi (25 savol)';
+  document.getElementById('level-quiz-title').textContent = t('level_test_title').replace('{subject}', subjectLabel(subject));
   loading.classList.add('open');
   body.innerHTML = '';
   submitBtn.style.display = 'none';
@@ -2154,9 +2221,9 @@ document.getElementById('level-quiz-submit').addEventListener('click', async () 
   });
 
   let levelLabel, recommendedModule;
-  if(correct <= 8){ levelLabel = 'Boshlang\'ich'; recommendedModule = 1; }
-  else if(correct <= 17){ levelLabel = 'O\'rta'; recommendedModule = 4; }
-  else { levelLabel = 'Yuqori'; recommendedModule = 6; }
+  if(correct <= 8){ levelLabel = t('level_beginner'); recommendedModule = 1; }
+  else if(correct <= 17){ levelLabel = t('level_intermediate'); recommendedModule = 4; }
+  else { levelLabel = t('level_advanced'); recommendedModule = 6; }
 
   localStorage.setItem('aiacademy_level_' + subjectId, JSON.stringify({ levelLabel, recommendedModule, correct }));
   logExamAttempt(subjectId, 'level', null, correct, 25, true);
@@ -2166,8 +2233,8 @@ document.getElementById('level-quiz-submit').addEventListener('click', async () 
   document.getElementById('level-quiz-submit').style.display = 'none';
   const result = document.getElementById('level-result');
   result.classList.add('open');
-  document.getElementById('level-result-title').textContent = 'Darajangiz: ' + levelLabel + ' (' + correct + '/25 to\'g\'ri)';
-  document.getElementById('level-result-detail').textContent = 'Tavsiya: ' + recommendedModule + '-moduldan boshlang. Darslar ro\'yxatida shu modul avtomatik ochiladi.';
+  document.getElementById('level-result-title').textContent = t('your_level') + ' ' + levelLabel + ' (' + correct + '/25 ' + t('correct_word') + ')';
+  document.getElementById('level-result-detail').textContent = t('recommendation') + ' ' + recommendedModule + t('start_from_module');
 
   await showAnswerReview(wrongOnes);
 
@@ -2227,7 +2294,7 @@ async function startModuleExam(subjectId, moduleIdx){
   stopExamTimer();
   section.style.display = 'block';
   section.scrollIntoView({ behavior:'smooth', block:'start' });
-  document.getElementById('level-quiz-title').textContent = moduleIdx + '-modul imtihoni: ' + mod.module + ' (30 savol, 45 daqiqa)';
+  document.getElementById('level-quiz-title').textContent = t('module_exam_title').replace('{n}', moduleIdx).replace('{module}', mod.module);
   loading.classList.add('open');
   body.innerHTML = '';
   submitBtn.style.display = 'none';
@@ -2300,17 +2367,17 @@ async function handleExamSubmit(){
     if(examModuleIdx === 7){
       setCertified(subjectId);
       awardPoints(100);
-      document.getElementById('level-result-title').textContent = '🏆 Tabriklaymiz! Kurs yakunlandi!';
-      document.getElementById('level-result-detail').textContent = 'Endi sertifikatingizni olishingiz mumkin.';
+      document.getElementById('level-result-title').textContent = t('course_complete_title');
+      document.getElementById('level-result-detail').textContent = t('course_complete_sub');
     } else {
       setUnlockedModule(subjectId, examModuleIdx + 1);
       awardPoints(30);
-      document.getElementById('level-result-title').textContent = '✅ Imtihon topshirildi! (' + correct + '/30)';
-      document.getElementById('level-result-detail').textContent = (examModuleIdx + 1) + '-modul endi ochildi.';
+      document.getElementById('level-result-title').textContent = t('exam_passed') + correct + '/30)';
+      document.getElementById('level-result-detail').textContent = (examModuleIdx + 1) + t('module_now_open');
     }
   } else {
-    document.getElementById('level-result-title').textContent = '❌ O\'tolmadingiz (' + correct + '/30)';
-    document.getElementById('level-result-detail').textContent = 'Kamida 21/30 to\'g\'ri kerak. Quyida xato javoblaringiz tahlili bilan berilgan — ko\'rib chiqib, qayta urining.';
+    document.getElementById('level-result-title').textContent = t('exam_failed') + correct + '/30)';
+    document.getElementById('level-result-detail').textContent = t('need_min_score');
   }
 
   const reviewEl = document.getElementById('level-review');
@@ -2327,7 +2394,7 @@ async function showAnswerReview(wrongOnes){
   reviewEl.innerHTML = '';
   if(wrongOnes.length === 0) return;
 
-  reviewEl.innerHTML = '<div class="hint" style="text-align:center; padding:14px 0;">⏳ Tahlil tayyorlanmoqda...</div>';
+  reviewEl.innerHTML = '<div class="hint" style="text-align:center; padding:14px 0;">⏳ ' + t('analyzing_word') + '</div>';
   try{
     const sys = withLanguage('Sen ta\'lim platformasi uchun tushuntiruvchi ekspertsan. Faqat berilgan JSON formatda javob ber, boshqa hech qanday matn yozma.');
     const userPrompt = 'Quyidagi savollarda talaba xato javob bergan. Har biri uchun, nega talabaning javobi noto\'g\'ri va nega to\'g\'ri javob to\'g\'ri ekanini 1-2 jumlada tushuntir. JSON massiv qaytar: {"explanations":["...", "..."]} — aynan ' + wrongOnes.length + ' ta element, savollar tartibida. Savollar: ' + JSON.stringify(wrongOnes.map(w => ({q: w.q, yourAnswer: w.yourAnswer, correctAnswer: w.correctAnswer})));
@@ -2347,8 +2414,8 @@ async function showAnswerReview(wrongOnes){
       item.className = 'review-item';
       item.innerHTML =
         '<div class="rq">' + w.q + '</div>' +
-        '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
-        '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>' +
+        '<div class="ryour">' + t('your_answer_word') + ' ' + w.yourAnswer + '</div>' +
+        '<div class="rcorrect">' + t('correct_answer_word') + ' ' + w.correctAnswer + '</div>' +
         '<div class="rexplain">' + (explanations[i] || '') + '</div>';
       reviewEl.appendChild(item);
     });
@@ -2359,8 +2426,8 @@ async function showAnswerReview(wrongOnes){
       item.className = 'review-item';
       item.innerHTML =
         '<div class="rq">' + w.q + '</div>' +
-        '<div class="ryour">Sizning javobingiz: ' + w.yourAnswer + '</div>' +
-        '<div class="rcorrect">To\'g\'ri javob: ' + w.correctAnswer + '</div>';
+        '<div class="ryour">' + t('your_answer_word') + ' ' + w.yourAnswer + '</div>' +
+        '<div class="rcorrect">' + t('correct_answer_word') + ' ' + w.correctAnswer + '</div>';
       reviewEl.appendChild(item);
     });
     console.error(err);
@@ -2439,6 +2506,27 @@ function applyLanguage(lang){
 
   document.getElementById('level-test-btn').textContent = t('level_test_btn');
   document.querySelector('footer').textContent = t('footer');
+
+  document.getElementById('leaderboard-title-el').textContent = t('leaderboard_title');
+  document.getElementById('leaderboard-sub-el').textContent = t('leaderboard_sub');
+  document.getElementById('nickname-prompt-el').textContent = t('nickname_prompt');
+  document.getElementById('nickname-input').placeholder = t('nickname_ph');
+  document.getElementById('nickname-save-btn').textContent = t('save_btn');
+
+  document.getElementById('schedule-title-el').textContent = t('schedule_title');
+  document.getElementById('schedule-sub-el').textContent = t('schedule_sub');
+  document.getElementById('schedule-save-btn').textContent = t('save_btn');
+
+  document.getElementById('calendar-title-el').textContent = t('calendar_title');
+  document.getElementById('calendar-prev-btn').textContent = t('cal_prev');
+  document.getElementById('calendar-next-btn').textContent = t('cal_next');
+
+  document.getElementById('progress-title-el').textContent = t('progress_title');
+  document.getElementById('progress-sub-el').textContent = t('progress_sub');
+
+  document.getElementById('cert-org-el').textContent = t('cert_org');
+  document.getElementById('cert-title-el').textContent = t('cert_title');
+  document.getElementById('certificate-print-btn').textContent = t('cert_print_btn');
 
   document.querySelectorAll('.node').forEach((node) => {
     const subjectId = node.id.replace('node-', '');
@@ -2532,7 +2620,7 @@ function showCertificate(subjectId){
   const data = raw ? JSON.parse(raw) : { date: new Date().toISOString() };
   const name = (sb && currentUser && currentUser.email) ? currentUser.email.split('@')[0] : 'O\'quvchi';
   document.getElementById('cert-body-text').textContent =
-    'Ushbu sertifikat ' + name + ' ' + subjectLabel(subject) + ' fani bo\'yicha barcha 7 modulni muvaffaqiyatli yakunlaganini tasdiqlaydi.';
+    t('cert_body_template').replace('{name}', name).replace('{subject}', subjectLabel(subject));
   document.getElementById('cert-date-text').textContent = new Date(data.date).toLocaleDateString();
   document.getElementById('certificate-overlay').classList.add('open');
 }
@@ -2570,13 +2658,13 @@ async function openLeaderboard(){
     const { data, error } = await sb.from('public_leaderboard').select('*').order('points', { ascending:false }).limit(20);
     if(error) throw error;
     if(!data || data.length === 0){
-      body.innerHTML = '<div class="hint" style="text-align:center; padding:16px 0;">Hali hech kim ball to\'plamagan.</div>';
+      body.innerHTML = '<div class="hint" style="text-align:center; padding:16px 0;">' + t('no_scores_yet') + '</div>';
     } else {
       body.innerHTML = '';
       data.forEach((row, i) => {
         const div = document.createElement('div');
         div.className = 'lb-row';
-        div.innerHTML = '<span class="lb-rank">' + (i+1) + '</span><span class="lb-name">' + (row.nickname || 'Anonim') + '</span><span class="lb-points">' + row.points + '</span>';
+        div.innerHTML = '<span class="lb-rank">' + (i+1) + '</span><span class="lb-name">' + (row.nickname || t('anonymous')) + '</span><span class="lb-points">' + row.points + '</span>';
         body.appendChild(div);
       });
     }
@@ -2615,7 +2703,7 @@ function openProgressPanel(){
 
   const streakRow = document.createElement('div');
   streakRow.className = 'progress-row';
-  streakRow.innerHTML = '<span>🔥 Streak</span><span>' + updateStreak() + ' kun</span>';
+  streakRow.innerHTML = '<span>' + t('streak_label') + '</span><span>' + updateStreak() + ' ' + t('days_word') + '</span>';
   body.appendChild(streakRow);
 
   SUBJECTS.forEach((s) => {
@@ -2624,7 +2712,7 @@ function openProgressPanel(){
     const cert = isCertified(s.id) ? ' 🏆' : '';
     const row = document.createElement('div');
     row.className = 'progress-row';
-    row.innerHTML = '<span>' + subjectLabel(s) + cert + '</span><span>' + done + '/70 dars \u00b7 ' + unlocked + '/7 modul</span>';
+    row.innerHTML = '<span>' + subjectLabel(s) + cert + '</span><span>' + done + '/70 ' + t('lessons_word') + ' \u00b7 ' + unlocked + '/7 ' + t('modules_word') + '</span>';
     body.appendChild(row);
   });
 
@@ -2635,7 +2723,7 @@ async function loadExamHistory(body){
   if(!sb || !currentUser) return;
   const heading = document.createElement('div');
   heading.style.cssText = 'font-family:Space Grotesk,sans-serif; font-weight:700; font-size:13px; margin:16px 0 6px;';
-  heading.textContent = 'So\'nggi imtihonlar';
+  heading.textContent = t('recent_exams');
   body.appendChild(heading);
   const list = document.createElement('div');
   body.appendChild(list);
@@ -2644,21 +2732,21 @@ async function loadExamHistory(body){
   try{
     const { data, error } = await sb.from('exam_attempts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending:false }).limit(10);
     if(error || !data || data.length === 0){
-      list.innerHTML = '<div class="hint" style="padding:4px 0;">Hali imtihon topshirilmagan.</div>';
+      list.innerHTML = '<div class="hint" style="padding:4px 0;">' + t('no_exams_yet') + '</div>';
       return;
     }
     list.innerHTML = '';
     data.forEach(a => {
       const subj = SUBJECTS.find(s => s.id === a.subject_id);
       const label = subj ? subjectLabel(subj) : a.subject_id;
-      const typeLabel = a.exam_type === 'level' ? 'Daraja testi' : (a.module_idx + '-modul imtihoni');
+      const typeLabel = a.exam_type === 'level' ? t('level_test_word') : (a.module_idx + t('module_exam_word'));
       const row = document.createElement('div');
       row.className = 'progress-row';
       row.innerHTML = '<span>' + label + ' \u2014 ' + typeLabel + '</span><span>' + (a.passed ? '\u2705' : '\u274c') + ' ' + a.score + '/' + a.total + '</span>';
       list.appendChild(row);
     });
   }catch(err){
-    list.innerHTML = '<div class="modal-msg error">Yuklab bo\'lmadi.</div>';
+    list.innerHTML = '<div class="modal-msg error">' + (t('no_exams_yet')) + '</div>';
     console.error(err);
   }
 }
@@ -2688,7 +2776,7 @@ function openSchedule(){
     dayDiv.className = 'sched-day';
     const label = document.createElement('div');
     label.className = 'sched-day-label';
-    label.textContent = DAY_LABELS_UZ[d];
+    label.textContent = t('day' + d);
     const chipRow = document.createElement('div');
     chipRow.className = 'sched-chip-row';
     SUBJECTS.forEach(s => {
@@ -2753,7 +2841,7 @@ document.getElementById('calendar-next-btn').addEventListener('click', () => {
 });
 
 function renderCalendar(){
-  document.getElementById('calendar-month-label').textContent = MONTH_NAMES_UZ[calendarViewDate.getMonth()] + ' ' + calendarViewDate.getFullYear();
+  document.getElementById('calendar-month-label').textContent = t('m' + (calendarViewDate.getMonth() + 1)) + ' ' + calendarViewDate.getFullYear();
   const body = document.getElementById('calendar-body');
   body.innerHTML = '';
   const grid = document.createElement('div');
@@ -2804,6 +2892,262 @@ function renderCalendar(){
 
   body.appendChild(grid);
 }
+
+
+// ==================== 3D Fon tizimi (Three.js) ====================
+let themeRenderer = null, themeScene = null, themeCamera = null;
+let themeParticles = null, themeExtras = [];
+let themeAnimId = null;
+let themeClock = 0;
+
+function initThemeRenderer(){
+  const canvas = document.getElementById('theme-canvas');
+  if(!canvas || typeof THREE === 'undefined') return false;
+  themeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  themeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  themeRenderer.setSize(window.innerWidth, window.innerHeight);
+  themeCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+  themeCamera.position.set(0, 0, 22);
+  window.addEventListener('resize', () => {
+    if(!themeRenderer || !themeCamera) return;
+    themeCamera.aspect = window.innerWidth / window.innerHeight;
+    themeCamera.updateProjectionMatrix();
+    themeRenderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  return true;
+}
+
+function makeParticleField(count, colorChoices, spread, size){
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const col = new THREE.Color();
+  for(let i = 0; i < count; i++){
+    positions[i*3] = (Math.random() - 0.5) * spread;
+    positions[i*3+1] = (Math.random() - 0.5) * spread;
+    positions[i*3+2] = (Math.random() - 0.5) * spread * 0.6 - 5;
+    col.set(colorChoices[Math.floor(Math.random() * colorChoices.length)]);
+    colors[i*3] = col.r; colors[i*3+1] = col.g; colors[i*3+2] = col.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({ size, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false });
+  return new THREE.Points(geo, mat);
+}
+
+function clearThemeScene(){
+  if(themeAnimId) cancelAnimationFrame(themeAnimId);
+  themeScene = new THREE.Scene();
+  themeExtras = [];
+  themeParticles = null;
+}
+
+function buildSpaceTheme(){
+  clearThemeScene();
+  themeScene.fog = new THREE.FogExp2(0x05060f, 0.012);
+  themeParticles = makeParticleField(1600, [0xffffff, 0x9db8ff, 0xc9a8ff, 0x6be0ff], 70, 0.18);
+  themeScene.add(themeParticles);
+
+  const planetGeo = new THREE.SphereGeometry(3.2, 32, 32);
+  const planetMat = new THREE.MeshBasicMaterial({ color: 0x2a3a7a, wireframe: true, transparent: true, opacity: 0.5 });
+  const planet = new THREE.Mesh(planetGeo, planetMat);
+  planet.position.set(6, 3, -18);
+  themeScene.add(planet);
+  themeExtras.push({ obj: planet, spin: 0.0015 });
+
+  const ringGeo = new THREE.TorusGeometry(4.6, 0.08, 8, 60);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x8fb3ff, transparent: true, opacity: 0.4 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI / 2.4;
+  ring.position.copy(planet.position);
+  themeScene.add(ring);
+  themeExtras.push({ obj: ring, spin: 0.003 });
+}
+
+function buildCuteTheme(){
+  clearThemeScene();
+  themeScene.fog = new THREE.FogExp2(0x2a1f3a, 0.01);
+  themeParticles = makeParticleField(900, [0xffc9de, 0xd6b8ff, 0xffffff, 0xffe3f0], 60, 0.22);
+  themeScene.add(themeParticles);
+
+  for(let i = 0; i < 4; i++){
+    const geo = new THREE.IcosahedronGeometry(1.1 + Math.random()*0.6, 0);
+    const mat = new THREE.MeshBasicMaterial({ color: [0xffb6d9, 0xd9b3ff, 0xffe0ef][i % 3], wireframe: true, transparent: true, opacity: 0.55 });
+    const gem = new THREE.Mesh(geo, mat);
+    gem.position.set((Math.random()-0.5)*22, (Math.random()-0.5)*14, -8 - Math.random()*10);
+    themeScene.add(gem);
+    themeExtras.push({ obj: gem, spin: 0.004 + Math.random()*0.004, floatSpeed: 0.4 + Math.random()*0.4, floatBase: gem.position.y });
+  }
+}
+
+function buildPirateTheme(){
+  clearThemeScene();
+  themeScene.fog = new THREE.FogExp2(0x0d1a1a, 0.02);
+  themeParticles = makeParticleField(700, [0xffb347, 0xffd27f, 0x9fd8c9], 55, 0.16);
+  themeScene.add(themeParticles);
+
+  const ship = new THREE.Group();
+  const hullGeo = new THREE.BoxGeometry(5, 1.2, 1.8);
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 });
+  const hull = new THREE.Mesh(hullGeo, hullMat);
+  ship.add(hull);
+  const mastGeo = new THREE.CylinderGeometry(0.06, 0.08, 4, 8);
+  const mastMat = new THREE.MeshStandardMaterial({ color: 0x2e1c10 });
+  const mast = new THREE.Mesh(mastGeo, mastMat);
+  mast.position.set(0, 2.6, 0);
+  ship.add(mast);
+  const sailGeo = new THREE.PlaneGeometry(2, 2.6);
+  const sailMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, side: THREE.DoubleSide, roughness: 0.9 });
+  const sail = new THREE.Mesh(sailGeo, sailMat);
+  sail.position.set(0, 3, 0.1);
+  ship.add(sail);
+  ship.position.set(-2, -5, -14);
+  ship.rotation.y = 0.3;
+  themeScene.add(ship);
+  themeExtras.push({ obj: ship, rock: true, floatBase: ship.position.y });
+
+  const light = new THREE.PointLight(0xffb347, 1.2, 40);
+  light.position.set(-2, 2, -8);
+  themeScene.add(light);
+  const ambient = new THREE.AmbientLight(0x223333, 0.8);
+  themeScene.add(ambient);
+}
+
+function buildNatureTheme(){
+  clearThemeScene();
+  themeScene.fog = new THREE.FogExp2(0x9fd0e0, 0.012);
+  themeParticles = makeParticleField(500, [0xffffff, 0xd8f0ff, 0xc9f2d9], 55, 0.14);
+  themeScene.add(themeParticles);
+
+  const mountainColors = [0x3a5a4a, 0x4f7a5f, 0x6a9478];
+  for(let i = 0; i < 6; i++){
+    const h = 6 + Math.random()*6;
+    const geo = new THREE.ConeGeometry(3 + Math.random()*2, h, 4);
+    const mat = new THREE.MeshStandardMaterial({ color: mountainColors[i % mountainColors.length], flatShading: true, roughness: 1 });
+    const mtn = new THREE.Mesh(geo, mat);
+    mtn.position.set((i - 2.5) * 5 + (Math.random()-0.5)*2, h/2 - 8, -20 - Math.random()*8);
+    mtn.rotation.y = Math.random() * Math.PI;
+    themeScene.add(mtn);
+  }
+
+  const fallGeo = new THREE.BufferGeometry();
+  const fallCount = 300;
+  const fallPos = new Float32Array(fallCount * 3);
+  for(let i = 0; i < fallCount; i++){
+    fallPos[i*3] = 8 + (Math.random()-0.5)*0.6;
+    fallPos[i*3+1] = Math.random()*14 - 6;
+    fallPos[i*3+2] = -16;
+  }
+  fallGeo.setAttribute('position', new THREE.BufferAttribute(fallPos, 3));
+  const fallMat = new THREE.PointsMaterial({ color: 0xbfe6ff, size: 0.12, transparent: true, opacity: 0.75 });
+  const waterfall = new THREE.Points(fallGeo, fallMat);
+  themeScene.add(waterfall);
+  themeExtras.push({ obj: waterfall, isWaterfall: true });
+
+  const sun = new THREE.DirectionalLight(0xffffff, 1);
+  sun.position.set(5, 10, 5);
+  themeScene.add(sun);
+  const ambient = new THREE.AmbientLight(0xaee0ff, 0.6);
+  themeScene.add(ambient);
+}
+
+function buildTechTheme(){
+  clearThemeScene();
+  themeScene.fog = new THREE.FogExp2(0x1a0505, 0.014);
+  themeParticles = makeParticleField(700, [0xff4d4d, 0xffb347, 0xff9d9d], 55, 0.15);
+  themeScene.add(themeParticles);
+
+  const coreGeo = new THREE.IcosahedronGeometry(2.4, 1);
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xff5c3d, wireframe: true, transparent: true, opacity: 0.65 });
+  const core = new THREE.Mesh(coreGeo, coreMat);
+  core.position.set(0, 0, -12);
+  themeScene.add(core);
+  themeExtras.push({ obj: core, spin: 0.006 });
+
+  const gridGeo = new THREE.PlaneGeometry(60, 60, 20, 20);
+  const gridMat = new THREE.MeshBasicMaterial({ color: 0x8a2e2e, wireframe: true, transparent: true, opacity: 0.35 });
+  const grid = new THREE.Mesh(gridGeo, gridMat);
+  grid.rotation.x = Math.PI / 2.2;
+  grid.position.set(0, -10, -20);
+  themeScene.add(grid);
+  themeExtras.push({ obj: grid, spin: 0.0004 });
+}
+
+function buildDefaultTheme(){
+  clearThemeScene();
+  themeScene.fog = new THREE.FogExp2(0x0b0e1a, 0.012);
+  themeParticles = makeParticleField(500, [0x5EEAD4, 0x7DA6FF, 0xC77DFF], 60, 0.14);
+  themeScene.add(themeParticles);
+}
+
+const THEME_BUILDERS = {
+  space: buildSpaceTheme, cute: buildCuteTheme, pirate: buildPirateTheme,
+  nature: buildNatureTheme, tech: buildTechTheme, default: buildDefaultTheme
+};
+
+function animateTheme(){
+  themeAnimId = requestAnimationFrame(animateTheme);
+  themeClock += 0.016;
+  if(themeParticles){
+    themeParticles.rotation.y += 0.0006;
+    themeParticles.rotation.x += 0.0002;
+  }
+  themeExtras.forEach(e => {
+    if(e.spin) e.obj.rotation.y += e.spin;
+    if(e.floatBase !== undefined && !e.rock){
+      e.obj.position.y = e.floatBase + Math.sin(themeClock * (e.floatSpeed || 0.5)) * 0.6;
+    }
+    if(e.rock){
+      e.obj.rotation.z = Math.sin(themeClock * 0.5) * 0.05;
+      e.obj.position.y = e.floatBase + Math.sin(themeClock * 0.6) * 0.3;
+    }
+    if(e.isWaterfall){
+      const pos = e.obj.geometry.attributes.position;
+      for(let i = 0; i < pos.count; i++){
+        let y = pos.getY(i) - 0.15;
+        if(y < -8) y = 8;
+        pos.setY(i, y);
+      }
+      pos.needsUpdate = true;
+    }
+  });
+  if(themeRenderer && themeScene && themeCamera){
+    themeRenderer.render(themeScene, themeCamera);
+  }
+}
+
+function setTheme(themeKey){
+  if(!THEME_BUILDERS[themeKey]) themeKey = 'default';
+  localStorage.setItem('aiacademy_theme', themeKey);
+  document.querySelectorAll('.theme-option').forEach(el => {
+    el.classList.toggle('active', el.dataset.theme === themeKey);
+  });
+  if(!themeRenderer){
+    if(!initThemeRenderer()) return;
+  }
+  THEME_BUILDERS[themeKey]();
+  if(!themeAnimId) animateTheme();
+}
+
+function initThemeSystem(){
+  const saved = localStorage.getItem('aiacademy_theme') || 'default';
+  setTheme(saved);
+}
+
+document.getElementById('theme-picker-link').addEventListener('click', () => {
+  document.getElementById('theme-picker-overlay').classList.add('open');
+});
+document.getElementById('theme-picker-close-btn').addEventListener('click', () => {
+  document.getElementById('theme-picker-overlay').classList.remove('open');
+});
+document.getElementById('theme-picker-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'theme-picker-overlay') document.getElementById('theme-picker-overlay').classList.remove('open');
+});
+document.querySelectorAll('.theme-option').forEach(el => {
+  el.addEventListener('click', () => setTheme(el.dataset.theme));
+});
+
+initThemeSystem();
 
 sendBtn.addEventListener('click', sendMessage);
 inputEl.addEventListener('keydown', (e) => {
