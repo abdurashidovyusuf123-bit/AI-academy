@@ -2245,7 +2245,8 @@ function clearThemeScene(){
 
 function buildSpaceTheme(){
   clearThemeScene();
-  themeScene.fog = new THREE.FogExp2(0x05060f, 0.009);
+  themeScene.background = new THREE.Color(0x0a1440);
+  themeScene.fog = new THREE.FogExp2(0x0a1440, 0.007);
   themeParticles = makeParticleField(2600, [0xffffff, 0xa8c8ff, 0xd6b8ff, 0x8be8ff, 0xffe08a], 80, 0.28);
   themeScene.add(themeParticles);
 
@@ -2282,7 +2283,8 @@ function buildSpaceTheme(){
 
 function buildTechTheme(){
   clearThemeScene();
-  themeScene.fog = new THREE.FogExp2(0x1a0505, 0.014);
+  themeScene.background = new THREE.Color(0x3a0a0a);
+  themeScene.fog = new THREE.FogExp2(0x3a0a0a, 0.012);
   themeParticles = makeParticleField(1000, [0xff4d4d, 0xffb347, 0xffe08a], 58, 0.24);
   themeScene.add(themeParticles);
 
@@ -2344,8 +2346,8 @@ function animateTheme(){
 // Sayt rangi (oq/yorug' dizayn) doimiy qoladi — mavzu faqat 3D fonni o'zgartiradi,
 // kartochkalar, matn va tugmalar rangiga tegmaydi.
 const THEME_COLORS = {
-  space: { overlay:'rgba(250,250,249,0.72)' },
-  tech: { overlay:'rgba(250,250,249,0.72)' },
+  space: { overlay:'rgba(10,20,60,0.05)' },
+  tech: { overlay:'rgba(50,10,10,0.05)' },
 };
 
 function applyThemeColors(themeKey){
@@ -2372,8 +2374,11 @@ function setTheme(themeKey){
 }
 
 function initThemeSystem(){
-  const saved = localStorage.getItem('aiacademy_theme') || 'space';
-  setTheme(saved);
+  const saved = localStorage.getItem('aiacademy_theme');
+  if(saved && THEME_BUILDERS[saved]){
+    setTheme(saved);
+  }
+  // Mavzu hali tanlanmagan bo'lsa — fon sof oq holicha qoladi, 3D sahna ishga tushmaydi.
 }
 
 document.getElementById('theme-picker-link').addEventListener('click', () => {
