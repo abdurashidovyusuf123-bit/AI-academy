@@ -16,6 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chess.js@0.13.4/chess.min.js"></script>
 <link rel="stylesheet" href="/css/style.css">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icons/icon-192.png">
@@ -40,6 +41,7 @@
       <option value="ar">العربية</option>
     </select>
     <span class="nav-link" id="install-link" style="display:none;">Ilovani o'rnatish</span>
+    <span class="nav-link" id="companion-link" style="display:none;" title="Do'stim">🤗</span>
     <span class="nav-link" id="theme-picker-link" title="Fon mavzusi">🎨</span>
     <span class="nav-link" id="streak-badge" style="display:none;"></span>
     <span class="nav-link" id="schedule-link" style="display:none;">🗓</span>
@@ -86,6 +88,52 @@
     <div class="modal-sub">Kuniga 5 ta bepul dars mavjud. VIP a'zo bo'lib, cheksiz darslarga ega bo'ling.</div>
     <div class="modal-msg" id="upgrade-msg"></div>
     <button class="modal-primary-btn" id="upgrade-btn">VIP bo'lish — $5/oy</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="companion-overlay">
+  <div class="modal-card" style="max-width:640px; max-height:88vh; overflow-y:auto;">
+    <button class="modal-close" id="companion-close-btn">&times;</button>
+
+    <div id="companion-onboarding" style="display:none;">
+      <div class="modal-title" id="comp-onboard-title-el">🤗 Keling, tanishamiz!</div>
+      <div class="modal-sub" id="comp-onboard-sub-el">Bu ma'lumotlar faqat sizga moslashish uchun kerak — hech kimga ko'rinmaydi.</div>
+      <input type="text" id="comp-name" placeholder="Ismingiz">
+      <input type="number" id="comp-age" placeholder="Yoshingiz">
+      <input type="text" id="comp-gender" placeholder="Jinsingiz (ixtiyoriy)">
+      <textarea id="comp-personality" placeholder="O'zingizni qanday odam deb bilasiz? (xarakteringiz)"></textarea>
+      <textarea id="comp-goals" placeholder="Maqsadlaringiz nima?"></textarea>
+      <textarea id="comp-strengths" placeholder="Kuchli tomonlaringiz"></textarea>
+      <textarea id="comp-weaknesses" placeholder="Zaif tomonlaringiz"></textarea>
+      <textarea id="comp-skills" placeholder="Qobiliyatlaringiz"></textarea>
+      <button class="modal-primary-btn" id="comp-onboard-save-btn">Tanishishni tugatish</button>
+    </div>
+
+    <div id="companion-hub" style="display:none;">
+      <div class="modal-title" id="comp-hub-title-el">🤗 Do'stim</div>
+      <div class="modal-sub" id="comp-hub-sub-el">Suhbatlashamizmi yoki o'ynaymizmi?</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+        <button class="level-btn" id="comp-open-chat-btn">💬 Suhbat</button>
+        <button class="level-btn" id="comp-open-xo-btn">⭕ X/O</button>
+        <button class="level-btn" id="comp-open-checkers-btn">🔴 Shashka</button>
+        <button class="level-btn" id="comp-open-chess-btn">♟️ Shaxmat</button>
+      </div>
+
+      <div id="companion-chat-view" style="display:none;">
+        <div class="messages" id="comp-messages" style="max-height:340px;"></div>
+        <div class="composer">
+          <textarea id="comp-input" placeholder="Yozing..."></textarea>
+          <button id="comp-send">Yuborish</button>
+        </div>
+      </div>
+
+      <div id="companion-game-view" style="display:none;">
+        <div id="game-status" style="text-align:center; font-size:13px; color:var(--text-dim); margin-bottom:10px;"></div>
+        <div id="game-board"></div>
+        <button class="level-btn" id="game-restart-btn" style="margin-top:10px;">🔄 Qayta boshlash</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
