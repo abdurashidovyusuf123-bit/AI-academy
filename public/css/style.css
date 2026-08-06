@@ -131,7 +131,7 @@
   }
 
   .chat-section{
-    max-width: 720px; margin: 60px auto 100px; padding: 0 20px;
+    max-width: 920px; margin: 60px auto 100px; padding: 0 20px;
   }
   .chat-card{
     background: var(--surface);
@@ -139,7 +139,7 @@
     border-radius: 18px;
     overflow:hidden;
     display:flex; flex-direction:column;
-    min-height: 480px;
+    min-height: 680px;
     box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
   }
   .chat-head{
@@ -159,10 +159,10 @@
   .chat-head .desc{ font-size:12px; color: var(--text-dim); }
 
   .messages{
-    flex:1; padding: 20px; display:flex; flex-direction:column; gap:14px;
-    overflow-y:auto; max-height: 460px;
+    flex:1; padding: 24px; display:flex; flex-direction:column; gap:16px;
+    overflow-y:auto; max-height: 660px; font-size: 15px;
   }
-  .msg{ max-width: 82%; padding: 12px 14px; border-radius: 14px; font-size: 14px; line-height:1.55; white-space:pre-wrap; }
+  .msg{ max-width: 86%; padding: 14px 16px; border-radius: 14px; font-size: 15px; line-height:1.65; white-space:pre-wrap; }
   .msg.assistant{ background: var(--surface-2); align-self:flex-start; border: 1px solid var(--line); }
   .msg.user{ background: var(--accent); align-self:flex-end; color: #fff; }
   .msg.system-empty{ color: var(--text-dim); font-size: 13px; text-align:center; margin: auto; max-width: 320px; }
@@ -207,7 +207,7 @@
   }
 
   .curriculum-section{
-    max-width: 720px; margin: 0 auto; padding: 0 20px;
+    max-width: 920px; margin: 0 auto; padding: 0 20px;
     display: none;
   }
   .curriculum-card{
@@ -477,3 +477,19 @@
 .checker-piece.red{ background:#d64545; border:2px solid #8a2b2b; }
 .checker-piece.black{ background:#2a2a2a; border:2px solid #000; }
 .checker-piece.king::after{ content:'♛'; color:#ffd700; font-size:14px; }
+
+/* AI Support robot avatari */
+#robot-avatar-wrap{
+  position: fixed; left: 18px; top: 50%; transform: translateY(-50%);
+  width: 130px; height: 190px; z-index: 5; cursor: pointer;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
+  transition: transform .2s;
+}
+#robot-avatar-wrap:hover{ transform: translateY(-50%) scale(1.06); }
+#robot-canvas{ width: 100%; height: 100%; display:block; }
+@media (max-width: 900px){
+  #robot-avatar-wrap{ width: 84px; height: 124px; left: 8px; }
+}
+@media (max-width: 640px){
+  #robot-avatar-wrap{ display: none; }
+}
