@@ -1154,9 +1154,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -2417,8 +2417,6 @@ document.querySelectorAll('.theme-option').forEach(el => {
   el.addEventListener('click', () => setTheme(el.dataset.theme));
 });
 
-initThemeSystem();
-
 sendBtn.addEventListener('click', sendMessage);
 inputEl.addEventListener('keydown', (e) => {
   if(e.key === 'Enter' && !e.shiftKey){
@@ -2868,44 +2866,44 @@ function buildRobotModel(){
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.35, roughness: 0.4 });
   const accentMat = new THREE.MeshStandardMaterial({ color: 0x4F46E5, metalness: 0.3, roughness: 0.4, emissive: 0x4F46E5, emissiveIntensity: 0.25 });
 
-  // Tana (torso)
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.62, 1.3, 16), bodyMat);
+  // Tana (torso) — to'rtburchak blok
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.2, 0.7), bodyMat);
   torso.position.y = -0.15;
   robotGroup.add(torso);
   robotParts.torso = torso;
 
-  // Ko'krak yorug'i (chest light)
-  const chest = new THREE.Mesh(new THREE.CircleGeometry(0.16, 20), accentMat);
-  chest.position.set(0, 0.05, 0.6);
+  // Ko'krak yorug'i (chest light) — kvadrat panel
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.04), accentMat);
+  chest.position.set(0, 0.05, 0.37);
   robotGroup.add(chest);
   robotParts.chest = chest;
 
-  // Bosh (head)
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 24), bodyMat);
-  head.position.y = 1.0;
+  // Bosh (head) — kub
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.66, 0.66), bodyMat);
+  head.position.y = 1.05;
   robotGroup.add(head);
   robotParts.head = head;
 
-  // Ko'zlar (eyes)
+  // Ko'zlar (eyes) — kvadrat
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0x4F46E5, emissive: 0x4F46E5, emissiveIntensity: 1.2 });
-  const eyeGeo = new THREE.SphereGeometry(0.07, 12, 12);
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.18, 1.02, 0.44);
-  const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.18, 1.02, 0.44);
+  const eyeGeo = new THREE.BoxGeometry(0.14, 0.1, 0.04);
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.19, 1.08, 0.34);
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.19, 1.08, 0.34);
   robotGroup.add(eyeL, eyeR);
   robotParts.eyeL = eyeL; robotParts.eyeR = eyeR; robotParts.eyeMat = eyeMat;
 
   // Antenna
-  const antennaStem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.35, 8), bodyMat);
+  const antennaStem = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.35, 0.05), bodyMat);
   antennaStem.position.set(0, 1.58, 0);
-  const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 10), accentMat);
+  const antennaTip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), accentMat);
   antennaTip.position.set(0, 1.78, 0);
   robotGroup.add(antennaStem, antennaTip);
   robotParts.antennaTip = antennaTip;
 
-  // Qo'llar (kichik, stub arms)
-  const armGeo = new THREE.CylinderGeometry(0.14, 0.12, 0.6, 10);
-  const armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-0.75, -0.1, 0); armL.rotation.z = 0.35;
-  const armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set(0.75, -0.1, 0); armR.rotation.z = -0.35;
+  // Qo'llar (kichik, to'rtburchak stub arms)
+  const armGeo = new THREE.BoxGeometry(0.26, 0.6, 0.26);
+  const armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-0.72, -0.1, 0); armL.rotation.z = 0.25;
+  const armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set(0.72, -0.1, 0); armR.rotation.z = -0.25;
   robotGroup.add(armL, armR);
   robotParts.armL = armL; robotParts.armR = armR;
 
@@ -2935,7 +2933,7 @@ function applyRobotStyle(themeKey){
     robotParts.chest.material.emissive.set(0x7fd4ff);
     // Kosmik dubulg'a (shaffof shar)
     const helmet = new THREE.Mesh(
-      new THREE.SphereGeometry(0.62, 24, 24),
+      new THREE.BoxGeometry(0.95, 0.9, 0.9),
       new THREE.MeshPhysicalMaterial({ color: 0x9fd3ff, transparent:true, opacity:0.22, roughness:0.1, metalness:0 })
     );
     helmet.position.copy(robotParts.head.position);
@@ -2986,3 +2984,5 @@ if(!initRobotAvatar()){
   // Three.js hali yuklanmagan bo'lsa, biroz kutib qayta urinamiz
   const retry = setInterval(() => { if(initRobotAvatar()) clearInterval(retry); }, 300);
 }
+
+initThemeSystem();
