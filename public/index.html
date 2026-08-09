@@ -95,7 +95,7 @@
 </div>
 
 <div class="modal-overlay" id="companion-overlay">
-  <div class="modal-card" style="max-width:640px; max-height:88vh; overflow-y:auto;">
+  <div class="modal-card" id="companion-modal-card" style="max-width:640px; max-height:88vh; overflow-y:auto;">
     <button class="modal-close" id="companion-close-btn">&times;</button>
 
     <div id="companion-onboarding" style="display:none;">
@@ -113,7 +113,10 @@
     </div>
 
     <div id="companion-hub" style="display:none;">
-      <div class="modal-title" id="comp-hub-title-el">🤗 Do'stim</div>
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div class="modal-title" id="comp-hub-title-el">🤗 Do'stim</div>
+        <button class="expand-btn" id="comp-expand-btn" title="Kattalashtirish">⤢</button>
+      </div>
       <div class="modal-sub" id="comp-hub-sub-el">Suhbatlashamizmi yoki o'ynaymizmi?</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
         <button class="level-btn" id="comp-open-chat-btn">💬 Suhbat</button>
@@ -124,7 +127,13 @@
 
       <div id="companion-chat-view" style="display:none;">
         <div class="messages" id="comp-messages" style="max-height:340px;"></div>
+        <div class="image-preview-row" id="comp-image-preview-row" style="display:none;">
+          <img id="comp-image-preview-thumb" alt="preview">
+          <button id="comp-image-preview-remove" type="button">&times;</button>
+        </div>
         <div class="composer">
+          <input type="file" id="comp-image-input" accept="image/*" style="display:none;">
+          <button id="comp-image-attach-btn" class="img-attach-btn" title="Rasm biriktirish">📷</button>
           <textarea id="comp-input" placeholder="Yozing..."></textarea>
           <button id="comp-send">Yuborish</button>
         </div>
@@ -270,13 +279,14 @@
   </section>
 
   <section class="chat-section">
-    <div class="chat-card">
+    <div class="chat-card" id="chat-card">
       <div class="chat-head">
         <div class="badge" id="chat-badge">✦</div>
-        <div>
+        <div style="flex:1;">
           <div class="title" id="chat-title">Fan tanlanmagan</div>
           <div class="desc" id="chat-desc">Yuqoridan fanni tanlang, so'ng savolingizni yozing</div>
         </div>
+        <button class="expand-btn" id="chat-expand-btn" title="Kattalashtirish">⤢</button>
       </div>
       <div class="messages" id="messages">
         <div class="msg system-empty">Fanni tanlashingiz bilan AI o'qituvchi shu yerda javob beradi.</div>
