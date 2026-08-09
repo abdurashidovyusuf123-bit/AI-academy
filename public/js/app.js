@@ -1160,9 +1160,9 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
+const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
 // ---------------------------------------------------------------------------
 
 let sb = null;
