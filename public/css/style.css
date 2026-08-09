@@ -493,3 +493,20 @@
 @media (max-width: 640px){
   #robot-avatar-wrap{ display: none; }
 }
+
+/* Kattalashtirish (expand) tugmasi */
+.expand-btn{
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+  width: 30px; height: 30px; font-size: 15px; cursor: pointer; color: var(--text-dim);
+  flex-shrink: 0;
+}
+.expand-btn:hover{ border-color: var(--accent); color: var(--accent); }
+.chat-card.expanded{
+  position: fixed; inset: 20px; z-index: 60; min-height: unset; height: calc(100vh - 40px);
+}
+.chat-card.expanded .messages{ max-height: none; flex: 1; }
+#companion-modal-card.expanded{
+  position: fixed; inset: 20px; max-width: none !important; max-height: none !important;
+  width: calc(100vw - 40px); height: calc(100vh - 40px); z-index: 60;
+}
+#companion-modal-card.expanded #comp-messages{ max-height: calc(100vh - 340px) !important; }
