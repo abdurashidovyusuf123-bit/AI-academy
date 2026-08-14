@@ -225,12 +225,12 @@ create policy "Foydalanuvchi faqat o'z Do'stim profilini ko'radi/o'zgartiradi"
   with check (auth.uid() = user_id);
 
 -- ================== Admin panel ==================
--- MUHIM: pastdagi 'YOUR_ADMIN_EMAIL' o'rniga o'zingizning Google email manzilingizni yozing.
+-- MUHIM: pastdagi   'abdurashidovyusuf123@gmail.com' o'rniga o'zingizning Google email manzilingizni yozing.
 -- Faqat shu email bilan kirgan foydalanuvchi admin statistikasini ko'ra oladi.
 create or replace function is_admin()
 returns boolean as $$
 begin
-  return (select email from auth.users where id = auth.uid()) = 'YOUR_ADMIN_EMAIL';
+  return (select email from auth.users where id = auth.uid()) = 'abdurashidovyusuf123@gmail.com';
 end;
 $$ language plpgsql security definer;
 
