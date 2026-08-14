@@ -1160,9 +1160,10 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
+const ADMIN_EMAIL = "YOUR_ADMIN_EMAIL";
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -1277,6 +1278,7 @@ function renderAuthArea(session){
   document.getElementById('progress-link').style.display = currentUser ? 'inline' : 'none';
   document.getElementById('schedule-link').style.display = currentUser ? 'inline' : 'none';
   document.getElementById('companion-link').style.display = currentUser ? 'inline' : 'none';
+  document.getElementById('admin-link').style.display = (currentUser && currentUser.email === ADMIN_EMAIL) ? 'inline' : 'none';
   document.getElementById('calendar-link').style.display = currentUser ? 'inline' : 'none';
 }
 
@@ -3158,3 +3160,86 @@ document.getElementById('comp-expand-btn').addEventListener('click', () => {
   card.classList.toggle('expanded');
   document.getElementById('comp-expand-btn').textContent = card.classList.contains('expanded') ? '⤡' : '⤢';
 });
+
+// ==================== Admin panel ====================
+const adminOverlay = document.getElementById('admin-overlay');
+document.getElementById('admin-close-btn').addEventListener('click', () => adminOverlay.classList.remove('open'));
+adminOverlay.addEventListener('click', (e) => { if(e.target === adminOverlay) adminOverlay.classList.remove('open'); });
+document.getElementById('admin-link').addEventListener('click', () => openAdminPanel());
+
+async function openAdminPanel(){
+  if(!sb || !currentUser) return;
+  adminOverlay.classList.add('open');
+  const body = document.getElementById('admin-body');
+  body.innerHTML = '<div class="hint" style="text-align:center; padding:20px 0;">⏳ ...</div>';
+
+  try{
+    const [statsRes, popRes, signupsRes] = await Promise.all([
+      sb.rpc('admin_get_stats'),
+      sb.rpc('admin_get_subject_popularity'),
+      sb.rpc('admin_get_recent_signups', { limit_n: 15 })
+    ]);
+
+    if(statsRes.error){
+      body.innerHTML = '<div class="modal-msg error">Ruxsat yo\'q yoki xatolik: ' + statsRes.error.message + '</div>';
+      return;
+    }
+
+    const s = statsRes.data;
+    body.innerHTML = '';
+
+    const grid = document.createElement('div');
+    grid.className = 'admin-stat-grid';
+    const stats = [
+      [s.total_users, 'Jami foydalanuvchi'],
+      [s.total_vip, 'VIP a\'zolar'],
+      [s.signups_7d, 'Oxirgi 7 kun'],
+      [s.signups_30d, 'Oxirgi 30 kun'],
+      [s.total_lessons_completed, 'Tugatilgan darslar'],
+      [s.total_exam_attempts, 'Imtihon urinishlari'],
+      [s.total_certificates, 'Sertifikatlar'],
+      [s.total_points, 'Jami ball'],
+    ];
+    stats.forEach(([num, label]) => {
+      const card = document.createElement('div');
+      card.className = 'admin-stat-card';
+      card.innerHTML = '<div class="admin-stat-num">' + num + '</div><div class="admin-stat-label">' + label + '</div>';
+      grid.appendChild(card);
+    });
+    body.appendChild(grid);
+
+    if(!popRes.error && popRes.data && popRes.data.length > 0){
+      const popTitle = document.createElement('div');
+      popTitle.className = 'admin-section-title';
+      popTitle.textContent = 'Fanlar mashhurligi';
+      body.appendChild(popTitle);
+      const maxCount = Math.max(...popRes.data.map(r => r.activity_count));
+      popRes.data.forEach(r => {
+        const subj = SUBJECTS.find(sub => sub.id === r.subject_id);
+        const label = subj ? subjectLabel(subj) : r.subject_id;
+        const row = document.createElement('div');
+        row.className = 'admin-bar-row';
+        const pct = maxCount > 0 ? (r.activity_count / maxCount * 100) : 0;
+        row.innerHTML = '<span style="width:90px; flex-shrink:0;">' + label + '</span><div class="admin-bar-track"><div class="admin-bar-fill" style="width:' + pct + '%;"></div></div><span>' + r.activity_count + '</span>';
+        body.appendChild(row);
+      });
+    }
+
+    if(!signupsRes.error && signupsRes.data && signupsRes.data.length > 0){
+      const suTitle = document.createElement('div');
+      suTitle.className = 'admin-section-title';
+      suTitle.textContent = 'So\'nggi ro\'yxatdan o\'tganlar';
+      body.appendChild(suTitle);
+      signupsRes.data.forEach(u => {
+        const row = document.createElement('div');
+        row.className = 'progress-row';
+        const date = new Date(u.created_at).toLocaleDateString();
+        row.innerHTML = '<span>' + u.email + (u.is_vip ? ' ✦' : '') + '</span><span>' + date + '</span>';
+        body.appendChild(row);
+      });
+    }
+  }catch(err){
+    body.innerHTML = '<div class="modal-msg error">Xatolik yuz berdi.</div>';
+    console.error(err);
+  }
+}
