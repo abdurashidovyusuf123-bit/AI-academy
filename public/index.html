@@ -44,6 +44,7 @@
       <option value="ar">العربية</option>
     </select>
     <span class="nav-link" id="install-link" style="display:none;">Ilovani o'rnatish</span>
+    <span class="nav-link" id="admin-link" style="display:none;" title="Admin">📊</span>
     <span class="nav-link" id="companion-link" style="display:none;" title="Do'stim">🤗</span>
     <span class="nav-link" id="theme-picker-link" title="Fon mavzusi">🎨</span>
     <span class="nav-link" id="streak-badge" style="display:none;"></span>
@@ -91,6 +92,15 @@
     <div class="modal-sub">Kuniga 5 ta bepul dars mavjud. VIP a'zo bo'lib, cheksiz darslarga ega bo'ling.</div>
     <div class="modal-msg" id="upgrade-msg"></div>
     <button class="modal-primary-btn" id="upgrade-btn">VIP bo'lish — $5/oy</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="admin-overlay">
+  <div class="modal-card" style="max-width:560px; max-height:85vh; overflow-y:auto;">
+    <button class="modal-close" id="admin-close-btn">&times;</button>
+    <div class="modal-title">📊 Admin panel</div>
+    <div class="modal-sub">Sayt statistikasi</div>
+    <div id="admin-body"></div>
   </div>
 </div>
 
