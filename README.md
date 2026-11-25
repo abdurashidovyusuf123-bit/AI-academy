@@ -192,3 +192,8 @@ Yangi fayllar: `api/payme.js`, `api/click.js` — bularni ham GitHub'ga yuklang 
 Avvalgi 3D (Three.js) robot o'rniga endi **toza SVG rasm** ishlatiladi — xuddi siz yuborgan rasmga o'xshash: oq tanali, ko'k antennali, dumaloq bosh, to'q ko'k ekran-yuz, ko'k ko'zlar va tabassum, o'ng qo'li doim "salom" berib turadi. Bu ham tezroq ishlaydi, ham ekranlarda aniqroq ko'rinadi.
 
 Faylni almashtirish uchun: `public/index.html`, `public/js/app.js`, `public/css/style.css` — barchasini qayta yuklang (Three.js kutubxonasi endi kerak emas, shuning uchun sayt sal tezroq yuklanadi).
+
+## 23-qadam: Fan tanlangach, doira berkinadi
+Endi fan tanlaganingizda (yoki "Do'stim" ochganingizda), o'rtadagi katta doira (8 ta fan) avtomatik **berkinadi** — faqat tanlangan fan nomi kichik tugma shaklida qoladi, asosiy chat ekraniga endi hech narsa halaqit bermaydi. Boshqa fanni tanlamoqchi bo'lsangiz, o'sha kichik tugmani (fan nomi yozilgan joyni) bosing — doira yana ochiladi.
+
+Faylni almashtirish: `public/js/app.js`, `public/css/style.css`.
