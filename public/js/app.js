@@ -1160,10 +1160,14 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
-const ADMIN_EMAIL = "abdurashidovyusuf123@gmail.com";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
+const ADMIN_EMAIL = "YOUR_ADMIN_EMAIL";
+const PAYME_MERCHANT_ID = "YOUR_PAYME_MERCHANT_ID";
+const CLICK_MERCHANT_ID = "YOUR_CLICK_MERCHANT_ID";
+const CLICK_SERVICE_ID = "YOUR_CLICK_SERVICE_ID";
+const VIP_PRICE_SOM = 65000;
 // ---------------------------------------------------------------------------
 
 let sb = null;
@@ -1306,9 +1310,25 @@ document.getElementById('upgrade-btn').addEventListener('click', async () => {
     }
     window.location.href = data.url;
   }catch(err){
-    msgEl.textContent = 'Ulanishda xatolik yuz berdi.';
+    msgEl.textContent = 'Ulanishda xatolik yuz berdi. Pastdagi Payme/Click tugmalaridan foydalaning.';
     msgEl.className = 'modal-msg error';
   }
+});
+
+// ---- VIP to'lov (Payme / Click — O'zbekiston uchun mahalliy kartalar) ----
+document.getElementById('payme-btn')?.addEventListener('click', () => {
+  if(!currentUser) return;
+  const amountTiyin = VIP_PRICE_SOM * 100;
+  const payload = `m=${PAYME_MERCHANT_ID};ac.user_id=${currentUser.id};a=${amountTiyin}`;
+  const b64 = btoa(payload);
+  window.location.href = `https://checkout.paycom.uz/${b64}`;
+});
+
+document.getElementById('click-btn')?.addEventListener('click', () => {
+  if(!currentUser) return;
+  const merchantTransId = `vip_${currentUser.id}`;
+  const url = `https://my.click.uz/services/pay?service_id=${CLICK_SERVICE_ID}&merchant_id=${CLICK_MERCHANT_ID}&amount=${VIP_PRICE_SOM}&transaction_param=${merchantTransId}`;
+  window.location.href = url;
 });
 
 if(sb){
@@ -1815,10 +1835,6 @@ function applyLanguage(lang){
 
   document.getElementById('cert-org-el').textContent = t('cert_org');
 
-  document.getElementById('theme-picker-title-el').textContent = t('theme_picker_title');
-  document.getElementById('theme-picker-sub-el').textContent = t('theme_picker_sub');
-  document.getElementById('theme-name-space').textContent = t('theme_space');
-  document.getElementById('theme-name-tech').textContent = t('theme_tech');
   document.getElementById('cert-title-el').textContent = t('cert_title');
   document.getElementById('certificate-print-btn').textContent = t('cert_print_btn');
 
@@ -2209,221 +2225,31 @@ function renderCalendar(){
 }
 
 
-// ==================== 3D Fon tizimi (Three.js) ====================
-let themeRenderer = null, themeScene = null, themeCamera = null;
-let themeComposer = null, themeBloomPass = null;
-let themeParticles = null, themeExtras = [];
-let themeAnimId = null;
-let themeClock = 0;
-
-function initThemeRenderer(){
-  const canvas = document.getElementById('theme-canvas');
-  if(!canvas || typeof THREE === 'undefined') return false;
-  themeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  themeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  themeRenderer.setSize(window.innerWidth, window.innerHeight);
-  themeCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
-  themeCamera.position.set(0, 0, 22);
-
-  if(typeof THREE.EffectComposer !== 'undefined'){
-    themeComposer = new THREE.EffectComposer(themeRenderer);
-    themeBloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.4, 0.7, 0.15);
-  }
-
-  window.addEventListener('resize', () => {
-    if(!themeRenderer || !themeCamera) return;
-    themeCamera.aspect = window.innerWidth / window.innerHeight;
-    themeCamera.updateProjectionMatrix();
-    themeRenderer.setSize(window.innerWidth, window.innerHeight);
-    if(themeComposer) themeComposer.setSize(window.innerWidth, window.innerHeight);
-    if(themeBloomPass) themeBloomPass.setSize(window.innerWidth, window.innerHeight);
-  });
-  return true;
+// Oddiy light/dark mode (3D fon tizimi butunlay olib tashlandi)
+function setColorMode(mode){
+  if(mode !== 'dark' && mode !== 'light') mode = 'light';
+  document.documentElement.setAttribute('data-theme', mode);
+  localStorage.setItem('aiacademy_mode', mode);
+  const toggle = document.getElementById('dark-mode-toggle');
+  if(toggle) toggle.textContent = mode === 'dark' ? '☀️' : '🌙';
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if(metaTheme) metaTheme.setAttribute('content', mode === 'dark' ? '#0E0F13' : '#FAFAF9');
 }
 
-function setupComposerForScene(){
-  if(!themeComposer) return;
-  themeComposer.passes = [];
-  const renderPass = new THREE.RenderPass(themeScene, themeCamera);
-  themeComposer.addPass(renderPass);
-  if(themeBloomPass) themeComposer.addPass(themeBloomPass);
-}
-
-function makeParticleField(count, colorChoices, spread, size){
-  const geo = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const col = new THREE.Color();
-  for(let i = 0; i < count; i++){
-    positions[i*3] = (Math.random() - 0.5) * spread;
-    positions[i*3+1] = (Math.random() - 0.5) * spread;
-    positions[i*3+2] = (Math.random() - 0.5) * spread * 0.6 - 5;
-    col.set(colorChoices[Math.floor(Math.random() * colorChoices.length)]);
-    colors[i*3] = col.r; colors[i*3+1] = col.g; colors[i*3+2] = col.b;
-  }
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.PointsMaterial({ size, vertexColors: true, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending });
-  return new THREE.Points(geo, mat);
-}
-
-function clearThemeScene(){
-  if(themeAnimId) cancelAnimationFrame(themeAnimId);
-  themeScene = new THREE.Scene();
-  themeExtras = [];
-  themeParticles = null;
-}
-
-function buildSpaceTheme(){
-  clearThemeScene();
-  themeScene.background = new THREE.Color(0x0a1440);
-  themeScene.fog = new THREE.FogExp2(0x0a1440, 0.007);
-  themeParticles = makeParticleField(2600, [0xffffff, 0xa8c8ff, 0xd6b8ff, 0x8be8ff, 0xffe08a], 80, 0.28);
-  themeScene.add(themeParticles);
-
-  const planetDefs = [
-    { color: 0x6fa8ff, size: 3.4, pos: [8, 4, -20], ring: 0x9fd3ff, spin: 0.002 },
-    { color: 0xff9d6f, size: 2.1, pos: [-9, -3, -16], ring: null, spin: 0.003 },
-    { color: 0xc77dff, size: 2.7, pos: [-4, 6, -26], ring: 0xe0b3ff, spin: 0.0018 },
-    { color: 0x7ee08c, size: 1.4, pos: [10, -4, -12], ring: null, spin: 0.004 },
-  ];
-  planetDefs.forEach(def => {
-    const geo = new THREE.SphereGeometry(def.size, 40, 40);
-    const mat = new THREE.MeshStandardMaterial({ color: def.color, emissive: def.color, emissiveIntensity: 0.55, roughness: 0.5, metalness: 0.2 });
-    const planet = new THREE.Mesh(geo, mat);
-    planet.position.set(...def.pos);
-    themeScene.add(planet);
-    themeExtras.push({ obj: planet, spin: def.spin });
-    if(def.ring){
-      const ringGeo = new THREE.TorusGeometry(def.size * 1.6, 0.1, 8, 60);
-      const ringMat = new THREE.MeshBasicMaterial({ color: def.ring, transparent: true, opacity: 0.7 });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI / 2.4;
-      ring.position.copy(planet.position);
-      themeScene.add(ring);
-      themeExtras.push({ obj: ring, spin: def.spin * 1.6 });
-    }
-  });
-
-  const sun = new THREE.PointLight(0xffffff, 1.4, 100);
-  sun.position.set(0, 10, 10);
-  themeScene.add(sun);
-  themeScene.add(new THREE.AmbientLight(0x3a3f7a, 0.6));
-}
-
-
-function buildTechTheme(){
-  clearThemeScene();
-  themeScene.background = new THREE.Color(0x3a0a0a);
-  themeScene.fog = new THREE.FogExp2(0x3a0a0a, 0.012);
-  themeParticles = makeParticleField(1000, [0xff4d4d, 0xffb347, 0xffe08a], 58, 0.24);
-  themeScene.add(themeParticles);
-
-  const coreGeo = new THREE.IcosahedronGeometry(2.4, 1);
-  const coreMat = new THREE.MeshBasicMaterial({ color: 0xff5c3d, wireframe: true, transparent: true, opacity: 0.65 });
-  const core = new THREE.Mesh(coreGeo, coreMat);
-  core.position.set(0, 0, -12);
-  themeScene.add(core);
-  themeExtras.push({ obj: core, spin: 0.006 });
-
-  const gridGeo = new THREE.PlaneGeometry(60, 60, 20, 20);
-  const gridMat = new THREE.MeshBasicMaterial({ color: 0x8a2e2e, wireframe: true, transparent: true, opacity: 0.35 });
-  const grid = new THREE.Mesh(gridGeo, gridMat);
-  grid.rotation.x = Math.PI / 2.2;
-  grid.position.set(0, -10, -20);
-  themeScene.add(grid);
-  themeExtras.push({ obj: grid, spin: 0.0004 });
-}
-
-const THEME_BUILDERS = {
-  space: buildSpaceTheme, tech: buildTechTheme
-};
-
-function animateTheme(){
-  themeAnimId = requestAnimationFrame(animateTheme);
-  themeClock += 0.016;
-  if(themeParticles){
-    themeParticles.rotation.y += 0.0006;
-    themeParticles.rotation.x += 0.0002;
-  }
-  themeExtras.forEach(e => {
-    if(e.spin) e.obj.rotation.y += e.spin;
-    if(e.floatBase !== undefined && !e.rock){
-      e.obj.position.y = e.floatBase + Math.sin(themeClock * (e.floatSpeed || 0.5)) * 0.6;
-    }
-    if(e.rock){
-      e.obj.rotation.z = Math.sin(themeClock * 0.5) * 0.05;
-      e.obj.position.y = e.floatBase + Math.sin(themeClock * 0.6) * 0.3;
-    }
-    if(e.isWaterfall){
-      const pos = e.obj.geometry.attributes.position;
-      for(let i = 0; i < pos.count; i++){
-        let y = pos.getY(i) - 0.15;
-        if(y < -8) y = 8;
-        pos.setY(i, y);
-      }
-      pos.needsUpdate = true;
-    }
-  });
-  if(themeRenderer && themeScene && themeCamera){
-    if(themeComposer && themeComposer.passes.length > 0){
-      themeComposer.render();
-    } else {
-      themeRenderer.render(themeScene, themeCamera);
-    }
+function initColorMode(){
+  const saved = localStorage.getItem('aiacademy_mode');
+  if(saved === 'dark' || saved === 'light'){
+    setColorMode(saved);
+  } else {
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setColorMode(prefersDark ? 'dark' : 'light');
   }
 }
+initColorMode();
 
-// Sayt rangi (oq/yorug' dizayn) doimiy qoladi — mavzu faqat 3D fonni o'zgartiradi,
-// kartochkalar, matn va tugmalar rangiga tegmaydi.
-const THEME_COLORS = {
-  space: { overlay:'rgba(10,20,60,0.05)' },
-  tech: { overlay:'rgba(50,10,10,0.05)' },
-};
-
-function applyThemeColors(themeKey){
-  const c = THEME_COLORS[themeKey];
-  if(!c) return;
-  document.getElementById('theme-canvas').style.filter = 'saturate(1.1) brightness(1.05)';
-  const overlay = document.querySelector('.scene-overlay');
-  if(overlay) overlay.style.background = c.overlay;
-}
-
-function setTheme(themeKey){
-  if(!THEME_BUILDERS[themeKey]) themeKey = 'space';
-  localStorage.setItem('aiacademy_theme', themeKey);
-  document.querySelectorAll('.theme-option').forEach(el => {
-    el.classList.toggle('active', el.dataset.theme === themeKey);
-  });
-  if(!themeRenderer){
-    if(!initThemeRenderer()) return;
-  }
-  THEME_BUILDERS[themeKey]();
-  setupComposerForScene();
-  applyThemeColors(themeKey);
-  if(typeof applyRobotStyle === 'function') applyRobotStyle(themeKey);
-  if(!themeAnimId) animateTheme();
-}
-
-function initThemeSystem(){
-  const saved = localStorage.getItem('aiacademy_theme');
-  if(saved && THEME_BUILDERS[saved]){
-    setTheme(saved);
-  }
-  // Mavzu hali tanlanmagan bo'lsa — fon sof oq holicha qoladi, 3D sahna ishga tushmaydi.
-}
-
-document.getElementById('theme-picker-link').addEventListener('click', () => {
-  document.getElementById('theme-picker-overlay').classList.add('open');
-});
-document.getElementById('theme-picker-close-btn').addEventListener('click', () => {
-  document.getElementById('theme-picker-overlay').classList.remove('open');
-});
-document.getElementById('theme-picker-overlay').addEventListener('click', (e) => {
-  if(e.target.id === 'theme-picker-overlay') document.getElementById('theme-picker-overlay').classList.remove('open');
-});
-document.querySelectorAll('.theme-option').forEach(el => {
-  el.addEventListener('click', () => setTheme(el.dataset.theme));
+document.getElementById('dark-mode-toggle').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  setColorMode(current === 'dark' ? 'light' : 'dark');
 });
 
 sendBtn.addEventListener('click', sendMessage);
@@ -3011,104 +2837,86 @@ function buildRobotModel(){
   robotGroup = new THREE.Group();
   robotParts = {};
 
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.35, roughness: 0.4 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: 0x4F46E5, metalness: 0.3, roughness: 0.4, emissive: 0x4F46E5, emissiveIntensity: 0.25 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.45 });
+  const blueMat = new THREE.MeshStandardMaterial({ color: 0x5B7CFA, metalness: 0.2, roughness: 0.35 });
+  const screenMat = new THREE.MeshStandardMaterial({ color: 0x1B2340, metalness: 0.3, roughness: 0.3 });
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x5ECBFF, emissive: 0x5ECBFF, emissiveIntensity: 1.1 });
 
-  // Tana (torso) — to'rtburchak blok
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.2, 0.7), bodyMat);
-  torso.position.y = -0.15;
+  // Tana (round, cute torso)
+  const torso = new THREE.Mesh(new THREE.SphereGeometry(0.6, 28, 22), bodyMat);
+  torso.scale.set(1, 1.1, 0.92);
+  torso.position.y = -0.55;
   robotGroup.add(torso);
   robotParts.torso = torso;
 
-  // Ko'krak yorug'i (chest light) — kvadrat panel
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.04), accentMat);
-  chest.position.set(0, 0.05, 0.37);
-  robotGroup.add(chest);
-  robotParts.chest = chest;
-
-  // Bosh (head) — kub
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.66, 0.66), bodyMat);
-  head.position.y = 1.05;
+  // Bosh (round head)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 30, 24), bodyMat);
+  head.position.y = 0.48;
   robotGroup.add(head);
   robotParts.head = head;
 
-  // Ko'zlar (eyes) — kvadrat
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x4F46E5, emissive: 0x4F46E5, emissiveIntensity: 1.2 });
-  const eyeGeo = new THREE.BoxGeometry(0.14, 0.1, 0.04);
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.19, 1.08, 0.34);
-  const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.19, 1.08, 0.34);
+  // Dumaloq ekran-yuz (dark navy rounded screen)
+  const screen = new THREE.Mesh(new THREE.SphereGeometry(0.37, 26, 20), screenMat);
+  screen.scale.set(1, 0.92, 0.22);
+  screen.position.set(0, 0.46, 0.42);
+  robotGroup.add(screen);
+  robotParts.screen = screen;
+
+  // Ko'zlar (eyes) — kichik dumaloq
+  const eyeGeo = new THREE.SphereGeometry(0.065, 14, 12);
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.scale.z = 0.4; eyeL.position.set(-0.14, 0.5, 0.54);
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.scale.z = 0.4; eyeR.position.set(0.14, 0.5, 0.54);
   robotGroup.add(eyeL, eyeR);
   robotParts.eyeL = eyeL; robotParts.eyeR = eyeR; robotParts.eyeMat = eyeMat;
 
-  // Antenna
-  const antennaStem = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.35, 0.05), bodyMat);
-  antennaStem.position.set(0, 1.58, 0);
-  const antennaTip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), accentMat);
-  antennaTip.position.set(0, 1.78, 0);
+  // Tabassum (smile arc)
+  const smile = new THREE.Mesh(
+    new THREE.TorusGeometry(0.11, 0.018, 8, 20, Math.PI),
+    eyeMat
+  );
+  smile.position.set(0, 0.36, 0.53);
+  smile.rotation.z = Math.PI;
+  robotGroup.add(smile);
+  robotParts.smile = smile;
+
+  // Antenna — ingichka tayoqcha + ko'k shar
+  const antennaStem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.32, 8), bodyMat);
+  antennaStem.position.set(0, 1.08, 0);
+  const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 14), blueMat);
+  antennaTip.position.set(0, 1.26, 0);
   robotGroup.add(antennaStem, antennaTip);
   robotParts.antennaTip = antennaTip;
 
-  // Qo'llar (kichik, to'rtburchak stub arms)
-  const armGeo = new THREE.BoxGeometry(0.26, 0.6, 0.26);
-  const armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-0.72, -0.1, 0); armL.rotation.z = 0.25;
-  const armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set(0.72, -0.1, 0); armR.rotation.z = -0.25;
-  robotGroup.add(armL, armR);
-  robotParts.armL = armL; robotParts.armR = armR;
+  // Quloqchalar (kichik ko'k doiralar boshning ikki yonida)
+  const earGeo = new THREE.SphereGeometry(0.09, 14, 12);
+  const earL = new THREE.Mesh(earGeo, blueMat); earL.position.set(-0.5, 0.48, 0);
+  const earR = new THREE.Mesh(earGeo, blueMat); earR.position.set(0.5, 0.48, 0);
+  robotGroup.add(earL, earR);
 
-  // Mavzuga xos qo'shimcha qismlar (keyin qo'shiladi/olib tashlanadi)
+  // Qo'llar — ingichka, bo'g'imli, kichik dumaloq panjalar
+  function buildArm(side){
+    const arm = new THREE.Group();
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.42, 10), blueMat);
+    upper.position.y = -0.21;
+    arm.add(upper);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), bodyMat);
+    hand.position.y = -0.46;
+    arm.add(hand);
+    arm.position.set(side * 0.58, -0.25, 0);
+    robotGroup.add(arm);
+    return { group: arm, hand };
+  }
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+  armL.group.rotation.z = 0.45;
+  robotParts.armL = armL.group;
+  // O'ng qo'l — doim ko'tarilgan, silkitib turadi (waving)
+  armR.group.rotation.z = -2.1;
+  robotParts.armR = armR.group;
+
   robotParts.extras = [];
-
   robotGroup.scale.setScalar(1.0);
   robotScene.add(robotGroup);
-}
-
-function clearRobotExtras(){
-  (robotParts.extras || []).forEach(e => robotScene.remove(e));
-  robotParts.extras = [];
-}
-
-function applyRobotStyle(themeKey){
-  robotStyle = themeKey || 'default';
-  clearRobotExtras();
-  const bodyMat = robotParts.torso.material;
-  const eyeMat = robotParts.eyeMat;
-
-  if(themeKey === 'space'){
-    bodyMat.color.set(0xe8edff);
-    bodyMat.metalness = 0.6; bodyMat.roughness = 0.25;
-    eyeMat.color.set(0x7fd4ff); eyeMat.emissive.set(0x7fd4ff);
-    robotParts.chest.material.color.set(0x7fd4ff);
-    robotParts.chest.material.emissive.set(0x7fd4ff);
-    // Kosmik dubulg'a (shaffof shar)
-    const helmet = new THREE.Mesh(
-      new THREE.BoxGeometry(0.95, 0.9, 0.9),
-      new THREE.MeshPhysicalMaterial({ color: 0x9fd3ff, transparent:true, opacity:0.22, roughness:0.1, metalness:0 })
-    );
-    helmet.position.copy(robotParts.head.position);
-    robotScene.add(helmet);
-    robotParts.extras.push(helmet);
-  } else if(themeKey === 'tech'){
-    bodyMat.color.set(0x2a1010);
-    bodyMat.metalness = 0.7; bodyMat.roughness = 0.3;
-    eyeMat.color.set(0xff5c3d); eyeMat.emissive.set(0xff5c3d);
-    robotParts.chest.material.color.set(0xff5c3d);
-    robotParts.chest.material.emissive.set(0xff5c3d);
-    robotParts.chest.material.emissiveIntensity = 1.2;
-    // Qizil-oltin "zirh" chiziqlari (yelka plastinkalari)
-    const plateMat = new THREE.MeshStandardMaterial({ color: 0xffb347, metalness: 0.8, roughness: 0.3, emissive: 0xff5c3d, emissiveIntensity: 0.3 });
-    [[-0.7, 0.35], [0.7, 0.35]].forEach(([x,y]) => {
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 0.36), plateMat);
-      plate.position.set(x, y, 0.05);
-      robotScene.add(plate);
-      robotParts.extras.push(plate);
-    });
-  } else {
-    bodyMat.color.set(0xffffff);
-    bodyMat.metalness = 0.35; bodyMat.roughness = 0.4;
-    eyeMat.color.set(0x4F46E5); eyeMat.emissive.set(0x4F46E5);
-    robotParts.chest.material.color.set(0x4F46E5);
-    robotParts.chest.material.emissive.set(0x4F46E5);
-  }
 }
 
 let robotLaughUntil = 0;
@@ -3122,23 +2930,25 @@ function animateRobot(){
   robotClock += 0.016;
   const laughing = robotClock < robotLaughUntil;
   if(laughing){
-    robotGroup.position.y = Math.sin(robotClock * 14) * 0.14;
-    robotGroup.rotation.z = Math.sin(robotClock * 16) * 0.18;
-    robotGroup.rotation.y = Math.sin(robotClock * 3) * 0.4;
-    if(robotParts.eyeMat) robotParts.eyeMat.emissiveIntensity = 1.6;
+    robotGroup.position.y = -0.1 + Math.sin(robotClock * 14) * 0.1;
+    robotGroup.rotation.z = Math.sin(robotClock * 16) * 0.12;
+    robotGroup.rotation.y = Math.sin(robotClock * 3) * 0.3;
+    if(robotParts.eyeMat) robotParts.eyeMat.emissiveIntensity = 1.7;
   } else {
-    robotGroup.position.y = Math.sin(robotClock * 1.1) * 0.08;
-    robotGroup.rotation.y = Math.sin(robotClock * 0.5) * 0.25;
+    robotGroup.position.y = Math.sin(robotClock * 1.1) * 0.06;
+    robotGroup.rotation.y = Math.sin(robotClock * 0.5) * 0.18;
     robotGroup.rotation.z = 0;
     if(robotParts.eyeMat){
-      robotParts.eyeMat.emissiveIntensity = 0.9 + Math.sin(robotClock * 2.2) * 0.4;
+      robotParts.eyeMat.emissiveIntensity = 0.9 + Math.sin(robotClock * 2.2) * 0.3;
     }
   }
   if(robotParts.antennaTip){
     robotParts.antennaTip.scale.setScalar(1 + Math.sin(robotClock * (laughing ? 10 : 3)) * 0.15);
   }
-  if(robotParts.armL) robotParts.armL.rotation.z = 0.35 + Math.sin(robotClock * (laughing ? 8 : 1.3)) * (laughing ? 0.3 : 0.06);
-  if(robotParts.armR) robotParts.armR.rotation.z = -0.35 - Math.sin(robotClock * (laughing ? 8 : 1.3)) * (laughing ? 0.3 : 0.06);
+  // Chap qo'l — tinch osilib, sal tebranadi
+  if(robotParts.armL) robotParts.armL.rotation.z = 0.45 + Math.sin(robotClock * (laughing ? 9 : 1.2)) * (laughing ? 0.35 : 0.06);
+  // O'ng qo'l — doim "salom" berib turadi (waving), kulganda tezroq
+  if(robotParts.armR) robotParts.armR.rotation.z = -2.1 + Math.sin(robotClock * (laughing ? 10 : 2.4)) * (laughing ? 0.4 : 0.22);
   robotRenderer.render(robotScene, robotCamera);
 }
 
@@ -3146,8 +2956,6 @@ if(!initRobotAvatar()){
   // Three.js hali yuklanmagan bo'lsa, biroz kutib qayta urinamiz
   const retry = setInterval(() => { if(initRobotAvatar()) clearInterval(retry); }, 300);
 }
-
-initThemeSystem();
 
 // ---- Kattalashtirish (fullscreen chat) ----
 document.getElementById('chat-expand-btn').addEventListener('click', () => {
