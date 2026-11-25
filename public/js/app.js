@@ -2796,166 +2796,24 @@ function checkChessEnd(){
   }
 }
 
-// ==================== AI Support robot avatari (doim chapda) ====================
-let robotRenderer = null, robotScene = null, robotCamera = null;
-let robotGroup = null, robotParts = {};
-let robotClock = 0;
-let robotStyle = 'default';
-
+// ==================== AI Support robot avatari (doim chap pastda, SVG) ====================
 function initRobotAvatar(){
-  const canvas = document.getElementById('robot-canvas');
-  if(!canvas || typeof THREE === 'undefined') return false;
-  robotRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  robotRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  const w = canvas.parentElement.clientWidth, h = canvas.parentElement.clientHeight;
-  robotRenderer.setSize(w, h);
-  robotScene = new THREE.Scene();
-  robotCamera = new THREE.PerspectiveCamera(32, w / h, 0.1, 50);
-  robotCamera.position.set(0, 0.3, 7);
-
-  buildRobotModel();
-
-  const key = new THREE.DirectionalLight(0xffffff, 1);
-  key.position.set(3, 4, 5);
-  robotScene.add(key);
-  robotScene.add(new THREE.AmbientLight(0xffffff, 0.55));
-
-  window.addEventListener('resize', () => {
-    const w2 = canvas.parentElement.clientWidth, h2 = canvas.parentElement.clientHeight;
-    robotRenderer.setSize(w2, h2);
-    robotCamera.aspect = w2 / h2;
-    robotCamera.updateProjectionMatrix();
-  });
-
-  document.getElementById('robot-avatar-wrap').addEventListener('click', () => openCompanion());
-
-  animateRobot();
+  const wrap = document.getElementById('robot-avatar-wrap');
+  if(!wrap) return false;
+  wrap.addEventListener('click', () => openCompanion());
   return true;
 }
 
-function buildRobotModel(){
-  robotGroup = new THREE.Group();
-  robotParts = {};
-
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.45 });
-  const blueMat = new THREE.MeshStandardMaterial({ color: 0x5B7CFA, metalness: 0.2, roughness: 0.35 });
-  const screenMat = new THREE.MeshStandardMaterial({ color: 0x1B2340, metalness: 0.3, roughness: 0.3 });
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x5ECBFF, emissive: 0x5ECBFF, emissiveIntensity: 1.1 });
-
-  // Tana (round, cute torso)
-  const torso = new THREE.Mesh(new THREE.SphereGeometry(0.6, 28, 22), bodyMat);
-  torso.scale.set(1, 1.1, 0.92);
-  torso.position.y = -0.55;
-  robotGroup.add(torso);
-  robotParts.torso = torso;
-
-  // Bosh (round head)
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 30, 24), bodyMat);
-  head.position.y = 0.48;
-  robotGroup.add(head);
-  robotParts.head = head;
-
-  // Dumaloq ekran-yuz (dark navy rounded screen)
-  const screen = new THREE.Mesh(new THREE.SphereGeometry(0.37, 26, 20), screenMat);
-  screen.scale.set(1, 0.92, 0.22);
-  screen.position.set(0, 0.46, 0.42);
-  robotGroup.add(screen);
-  robotParts.screen = screen;
-
-  // Ko'zlar (eyes) — kichik dumaloq
-  const eyeGeo = new THREE.SphereGeometry(0.065, 14, 12);
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.scale.z = 0.4; eyeL.position.set(-0.14, 0.5, 0.54);
-  const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.scale.z = 0.4; eyeR.position.set(0.14, 0.5, 0.54);
-  robotGroup.add(eyeL, eyeR);
-  robotParts.eyeL = eyeL; robotParts.eyeR = eyeR; robotParts.eyeMat = eyeMat;
-
-  // Tabassum (smile arc)
-  const smile = new THREE.Mesh(
-    new THREE.TorusGeometry(0.11, 0.018, 8, 20, Math.PI),
-    eyeMat
-  );
-  smile.position.set(0, 0.36, 0.53);
-  smile.rotation.z = Math.PI;
-  robotGroup.add(smile);
-  robotParts.smile = smile;
-
-  // Antenna — ingichka tayoqcha + ko'k shar
-  const antennaStem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.32, 8), bodyMat);
-  antennaStem.position.set(0, 1.08, 0);
-  const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 14), blueMat);
-  antennaTip.position.set(0, 1.26, 0);
-  robotGroup.add(antennaStem, antennaTip);
-  robotParts.antennaTip = antennaTip;
-
-  // Quloqchalar (kichik ko'k doiralar boshning ikki yonida)
-  const earGeo = new THREE.SphereGeometry(0.09, 14, 12);
-  const earL = new THREE.Mesh(earGeo, blueMat); earL.position.set(-0.5, 0.48, 0);
-  const earR = new THREE.Mesh(earGeo, blueMat); earR.position.set(0.5, 0.48, 0);
-  robotGroup.add(earL, earR);
-
-  // Qo'llar — ingichka, bo'g'imli, kichik dumaloq panjalar
-  function buildArm(side){
-    const arm = new THREE.Group();
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.42, 10), blueMat);
-    upper.position.y = -0.21;
-    arm.add(upper);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), bodyMat);
-    hand.position.y = -0.46;
-    arm.add(hand);
-    arm.position.set(side * 0.58, -0.25, 0);
-    robotGroup.add(arm);
-    return { group: arm, hand };
-  }
-  const armL = buildArm(-1);
-  const armR = buildArm(1);
-  armL.group.rotation.z = 0.45;
-  robotParts.armL = armL.group;
-  // O'ng qo'l — doim ko'tarilgan, silkitib turadi (waving)
-  armR.group.rotation.z = -2.1;
-  robotParts.armR = armR.group;
-
-  robotParts.extras = [];
-  robotGroup.scale.setScalar(1.0);
-  robotScene.add(robotGroup);
-}
-
-let robotLaughUntil = 0;
+let robotLaughTimeout = null;
 function robotLaugh(){
-  robotLaughUntil = robotClock + 1.4;
+  const wrap = document.getElementById('robot-avatar-wrap');
+  if(!wrap) return;
+  wrap.classList.add('robot-laughing');
+  clearTimeout(robotLaughTimeout);
+  robotLaughTimeout = setTimeout(() => wrap.classList.remove('robot-laughing'), 1400);
 }
 
-function animateRobot(){
-  requestAnimationFrame(animateRobot);
-  if(!robotRenderer || !robotGroup) return;
-  robotClock += 0.016;
-  const laughing = robotClock < robotLaughUntil;
-  if(laughing){
-    robotGroup.position.y = -0.1 + Math.sin(robotClock * 14) * 0.1;
-    robotGroup.rotation.z = Math.sin(robotClock * 16) * 0.12;
-    robotGroup.rotation.y = Math.sin(robotClock * 3) * 0.3;
-    if(robotParts.eyeMat) robotParts.eyeMat.emissiveIntensity = 1.7;
-  } else {
-    robotGroup.position.y = Math.sin(robotClock * 1.1) * 0.06;
-    robotGroup.rotation.y = Math.sin(robotClock * 0.5) * 0.18;
-    robotGroup.rotation.z = 0;
-    if(robotParts.eyeMat){
-      robotParts.eyeMat.emissiveIntensity = 0.9 + Math.sin(robotClock * 2.2) * 0.3;
-    }
-  }
-  if(robotParts.antennaTip){
-    robotParts.antennaTip.scale.setScalar(1 + Math.sin(robotClock * (laughing ? 10 : 3)) * 0.15);
-  }
-  // Chap qo'l — tinch osilib, sal tebranadi
-  if(robotParts.armL) robotParts.armL.rotation.z = 0.45 + Math.sin(robotClock * (laughing ? 9 : 1.2)) * (laughing ? 0.35 : 0.06);
-  // O'ng qo'l — doim "salom" berib turadi (waving), kulganda tezroq
-  if(robotParts.armR) robotParts.armR.rotation.z = -2.1 + Math.sin(robotClock * (laughing ? 10 : 2.4)) * (laughing ? 0.4 : 0.22);
-  robotRenderer.render(robotScene, robotCamera);
-}
-
-if(!initRobotAvatar()){
-  // Three.js hali yuklanmagan bo'lsa, biroz kutib qayta urinamiz
-  const retry = setInterval(() => { if(initRobotAvatar()) clearInterval(retry); }, 300);
-}
+initRobotAvatar();
 
 // ---- Kattalashtirish (fullscreen chat) ----
 document.getElementById('chat-expand-btn').addEventListener('click', () => {
