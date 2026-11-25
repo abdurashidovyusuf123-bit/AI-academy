@@ -10,12 +10,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 <link rel="stylesheet" href="/css/style.css">
 <link rel="manifest" href="/manifest.json">
@@ -24,12 +18,9 @@
 </head>
 <body>
 
-<canvas id="theme-canvas"></canvas>
 <div id="robot-avatar-wrap" title="Do'stim bilan gaplashish">
   <canvas id="robot-canvas"></canvas>
 </div>
-<div class="scene-overlay"></div>
-<div class="bg-glow"></div>
 
 <header>
   <div class="wordmark"><span class="dot" id="wm-dot"></span> AI Academy</div>
@@ -46,7 +37,7 @@
     <span class="nav-link" id="install-link" style="display:none;">Ilovani o'rnatish</span>
     <span class="nav-link" id="admin-link" style="display:none;" title="Admin">📊</span>
     <span class="nav-link" id="companion-link" style="display:none;" title="Do'stim">🤗</span>
-    <span class="nav-link" id="theme-picker-link" title="Fon mavzusi">🎨</span>
+    <span class="nav-link" id="dark-mode-toggle" title="Dark/Light">🌙</span>
     <span class="nav-link" id="streak-badge" style="display:none;"></span>
     <span class="nav-link" id="schedule-link" style="display:none;">🗓</span>
     <span class="nav-link" id="calendar-link" style="display:none;">📅</span>
@@ -92,6 +83,8 @@
     <div class="modal-sub">Kuniga 5 ta bepul dars mavjud. VIP a'zo bo'lib, cheksiz darslarga ega bo'ling.</div>
     <div class="modal-msg" id="upgrade-msg"></div>
     <button class="modal-primary-btn" id="upgrade-btn">VIP bo'lish — $5/oy</button>
+    <button class="modal-primary-btn" id="payme-btn" style="background:#00cccc; margin-top:8px;">Payme orqali to'lash</button>
+    <button class="modal-primary-btn" id="click-btn" style="background:#0068ff; margin-top:8px;">Click orqali to'lash</button>
   </div>
 </div>
 
@@ -156,24 +149,6 @@
       </div>
     </div>
 
-  </div>
-</div>
-
-<div class="modal-overlay" id="theme-picker-overlay">
-  <div class="modal-card" style="max-width:520px;">
-    <button class="modal-close" id="theme-picker-close-btn">&times;</button>
-    <div class="modal-title" id="theme-picker-title-el">🎨 Fon mavzusini tanlang</div>
-    <div class="modal-sub" id="theme-picker-sub-el">3D fon — o'zingizga yoqqanini tanlang</div>
-    <div class="theme-grid" id="theme-grid">
-      <div class="theme-option" data-theme="space">
-        <div class="theme-swatch swatch-space"></div>
-        <div class="theme-name" id="theme-name-space">🌌 Galaktika</div>
-      </div>
-      <div class="theme-option" data-theme="tech">
-        <div class="theme-swatch swatch-tech"></div>
-        <div class="theme-name" id="theme-name-tech">⚙️ Texno-qahramon</div>
-      </div>
-    </div>
   </div>
 </div>
 
