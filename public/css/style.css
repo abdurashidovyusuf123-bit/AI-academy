@@ -122,7 +122,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     cursor:pointer;
-    transition: transform .25s ease, border-color .25s, box-shadow .25s, background .25s;
+    transition: transform .4s ease, opacity .3s ease, border-color .25s, box-shadow .25s, background .25s;
     text-align:center;
     padding: 6px;
   }
@@ -131,6 +131,32 @@
     background: var(--surface-2);
     box-shadow: 0 0 0 1px currentColor, 0 0 30px -4px currentColor;
   }
+
+  /* Fan tanlangach (yoki Do'stim ochilganda) — fanlar doirasi chap tarafga o'tib berkinadi,
+     faqat tanlangan fan nomi kichik "tugma" sifatida qoladi — asosiy ekranga halaqit bermaydi */
+  .orbit-wrap.orbit-collapsed{
+    height: auto; min-height: 70px;
+    display:flex; align-items:center; justify-content:center;
+    transition: min-height .4s ease;
+  }
+  .orbit-wrap.orbit-collapsed .orbit-ring{ opacity: 0; pointer-events:none; transition: opacity .3s ease; }
+  .orbit-wrap.orbit-collapsed .node{
+    transform: translate(-130vw, -50%) !important;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .orbit-wrap.orbit-collapsed .core{
+    position: static; transform: none;
+    width: auto; min-width: 200px; height:auto;
+    flex-direction: row; gap: 10px;
+    border-radius: 999px;
+    padding: 12px 22px;
+    margin: 0 auto;
+    cursor: pointer;
+  }
+  .orbit-wrap.orbit-collapsed .core:hover{ border-color: var(--accent); }
+  .orbit-wrap.orbit-collapsed .core-sub{ display: none; }
+  .orbit-wrap.orbit-collapsed .core::after{ content: '⇅'; font-size: 12px; color: var(--text-dim); margin-left: 2px; }
   .node-icon{ font-size: 20px; line-height:1; }
   .node-label{ font-family:'Space Grotesk', sans-serif; font-size: 12px; font-weight:600; }
 
