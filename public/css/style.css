@@ -471,17 +471,58 @@
 /* AI Support robot avatari - chap pastki burchakda, asosiy ekranga halaqit bermaydi */
 #robot-avatar-wrap{
   position: fixed; left: 16px; bottom: 16px;
-  width: 92px; height: 110px; z-index: 40; cursor: pointer;
+  width: 92px; height: 101px; z-index: 40; cursor: pointer;
   filter: drop-shadow(0 8px 16px rgba(0,0,0,0.18));
   transition: transform .2s;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 20px;
+  padding: 4px;
 }
 #robot-avatar-wrap:hover{ transform: translateY(-4px) scale(1.05); }
-#robot-canvas{ width: 100%; height: 100%; display:block; }
+#robot-svg{ width: 100%; height: 100%; display:block; overflow: visible; }
+
+#robot-bob{ transform-origin: 100px 160px; animation: robot-idle-bob 3.2s ease-in-out infinite; }
+@keyframes robot-idle-bob{
+  0%, 100%{ transform: translateY(0) rotate(0deg); }
+  50%{ transform: translateY(-4px) rotate(-1.5deg); }
+}
+#robot-antenna-tip{ transform-origin: 100px 14px; animation: robot-antenna-pulse 1.8s ease-in-out infinite; }
+@keyframes robot-antenna-pulse{
+  0%, 100%{ transform: scale(1); opacity: 1; }
+  50%{ transform: scale(1.18); opacity: 0.85; }
+}
+#robot-arm-right{ transform-origin: 142px 118px; animation: robot-wave 1.6s ease-in-out infinite; }
+@keyframes robot-wave{
+  0%, 100%{ transform: rotate(0deg); }
+  50%{ transform: rotate(-12deg); }
+}
+#robot-arm-left{ transform-origin: 58px 118px; animation: robot-sway 3.6s ease-in-out infinite; }
+@keyframes robot-sway{
+  0%, 100%{ transform: rotate(0deg); }
+  50%{ transform: rotate(4deg); }
+}
+#robot-eye-l, #robot-eye-r{ animation: robot-blink 4.5s ease-in-out infinite; transform-origin: center; }
+@keyframes robot-blink{
+  0%, 92%, 100%{ transform: scaleY(1); }
+  95%{ transform: scaleY(0.1); }
+}
+
+/* Robot yutganda masxaralab "kuladi" */
+#robot-avatar-wrap.robot-laughing #robot-bob{ animation: robot-laugh-shake .22s ease-in-out infinite; }
+#robot-avatar-wrap.robot-laughing #robot-arm-right{ animation: robot-laugh-arm .3s ease-in-out infinite; }
+#robot-avatar-wrap.robot-laughing #robot-arm-left{ animation: robot-laugh-arm .3s ease-in-out infinite reverse; }
+@keyframes robot-laugh-shake{
+  0%, 100%{ transform: translateY(-6px) rotate(-4deg); }
+  50%{ transform: translateY(-2px) rotate(4deg); }
+}
+@keyframes robot-laugh-arm{
+  0%, 100%{ transform: rotate(-18deg); }
+  50%{ transform: rotate(10deg); }
+}
+
 @media (max-width: 640px){
-  #robot-avatar-wrap{ width: 64px; height: 76px; left: 10px; bottom: 10px; }
+  #robot-avatar-wrap{ width: 64px; height: 70px; left: 10px; bottom: 10px; }
 }
 
 /* Kattalashtirish (expand) tugmasi */
