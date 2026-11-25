@@ -715,6 +715,10 @@ SUBJECTS.forEach((s, i) => {
   window.addEventListener('resize', place);
 });
 
+document.querySelector('.core').addEventListener('click', () => {
+  if(currentSubject) orbitWrap.classList.toggle('orbit-collapsed');
+});
+
 let currentSubject = null;
 let history = [];
 
@@ -722,6 +726,7 @@ function selectSubject(id){
   currentSubject = SUBJECTS.find(s => s.id === id);
   document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
   document.getElementById('node-' + id).classList.add('active');
+  orbitWrap.classList.add('orbit-collapsed');
 
   document.documentElement.style.setProperty('--accent', currentSubject.color);
   document.getElementById('core-label').textContent = subjectLabel(currentSubject);
@@ -2275,6 +2280,7 @@ companionOverlay.addEventListener('click', (e) => { if(e.target === companionOve
 
 async function openCompanion(){
   if(!sb || !currentUser){ openAuth(); return; }
+  orbitWrap.classList.add('orbit-collapsed');
   companionOverlay.classList.add('open');
   document.getElementById('companion-onboarding').style.display = 'none';
   document.getElementById('companion-hub').style.display = 'none';
