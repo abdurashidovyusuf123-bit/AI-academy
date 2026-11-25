@@ -187,3 +187,8 @@ Yangi fayllar: `api/payme.js`, `api/click.js` — bularni ham GitHub'ga yuklang 
 - Asosiy dars-chat oynasi va darslar ro'yxati kengaytirildi — bitta keng, toza asosiy ekran.
 - Chap pastki burchakdagi robot — oq tanali, ko'k antennali, dumaloq boshli, qo'li bilan salom beradigan "mehribon" dizaynda, asosiy ekranga hech qachon halaqit bermaydi (kichik, burchakda).
 - Ichki xatolik tuzatildi: eski (olib tashlangan) mavzu-tanlash oynasiga ishora qilgan kod qoldiqlari sayt tilini almashtirishda "jim" xatolikka olib kelardi (ba'zi matnlar tarjima qilinmay qolardi) — bu butunlay tozalandi.
+
+## 22-qadam: Robot — aniq va chiroyli (SVG)
+Avvalgi 3D (Three.js) robot o'rniga endi **toza SVG rasm** ishlatiladi — xuddi siz yuborgan rasmga o'xshash: oq tanali, ko'k antennali, dumaloq bosh, to'q ko'k ekran-yuz, ko'k ko'zlar va tabassum, o'ng qo'li doim "salom" berib turadi. Bu ham tezroq ishlaydi, ham ekranlarda aniqroq ko'rinadi.
+
+Faylni almashtirish uchun: `public/index.html`, `public/js/app.js`, `public/css/style.css` — barchasini qayta yuklang (Three.js kutubxonasi endi kerak emas, shuning uchun sayt sal tezroq yuklanadi).
