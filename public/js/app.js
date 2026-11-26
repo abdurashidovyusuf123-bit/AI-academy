@@ -1176,10 +1176,10 @@ async function startLesson(subjectId, lessonNumber, lessonTitle){
 
 
 // ---- Sozlamalar: Supabase va Formspree ma'lumotlarini shu yerga qo'ying ----
-const SUPABASE_URL = "https://emzlnmrxndafjwvxrscf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtemxubXJ4bmRhZmp3dnhyc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjMxNzUsImV4cCI6MjEwMDYzOTE3NX0.PftpbC0kpnC2HtZ3K9gSKA7PKRC8C8aqf16UHyYneP8";
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/mqerwwlw";
-const ADMIN_EMAIL = "abdurashidovyusuf123@gmail.com";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
+const ADMIN_EMAIL = "YOUR_ADMIN_EMAIL";
 const PAYME_MERCHANT_ID = "YOUR_PAYME_MERCHANT_ID";
 const CLICK_MERCHANT_ID = "YOUR_CLICK_MERCHANT_ID";
 const CLICK_SERVICE_ID = "YOUR_CLICK_SERVICE_ID";
@@ -2283,6 +2283,7 @@ inputEl.addEventListener('input', () => {
 // ==================== "Do'stim" (Support/Companion Bot) ====================
 let companionProfile = null;
 let companionHistory = [];
+let currentCompanionChatId = null;
 
 const companionOverlay = document.getElementById('companion-overlay');
 document.getElementById('companion-link').addEventListener('click', () => openCompanion());
@@ -2350,20 +2351,104 @@ document.getElementById('comp-open-chat-btn').addEventListener('click', async ()
     await loadCompanionHistory();
   }
 });
+function showCompanionGreeting(){
+  const name = companionProfile && companionProfile.name ? companionProfile.name : '';
+  addCompanionMessage('assistant', t('comp_greeting').replace('{name}', name ? ', ' + name : ''));
+}
+
 async function loadCompanionHistory(){
   const msgsEl = document.getElementById('comp-messages');
   msgsEl.innerHTML = '';
-  if(!sb || !currentUser) return;
+  currentCompanionChatId = null;
+  companionHistory = [];
+  if(!sb || !currentUser){ showCompanionGreeting(); return; }
   try{
-    const { data } = await sb.from('chat_history').select('messages').eq('user_id', currentUser.id).eq('subject_id', 'companion_bot').maybeSingle();
-    if(data && data.messages && data.messages.length > 0){
-      companionHistory = data.messages;
-      companionHistory.forEach(m => addCompanionMessage(m.role === 'assistant' ? 'assistant' : 'user', typeof m.content === 'string' ? m.content : ''));
-      return;
+    // Eng so'nggi suhbatni yuklaymiz (bir nechta alohida suhbatlar saqlanadi)
+    const { data: chats } = await sb.from('companion_chats').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: false }).limit(1);
+    if(chats && chats.length > 0){
+      currentCompanionChatId = chats[0].id;
+      companionHistory = chats[0].messages || [];
+      if(companionHistory.length){
+        companionHistory.forEach(m => addCompanionMessage(m.role === 'assistant' ? 'assistant' : 'user', typeof m.content === 'string' ? m.content : ''));
+        return;
+      }
+    } else {
+      // Eski (yagona) suhbat tarixini bir martalik migratsiya qilamiz
+      const { data: legacy } = await sb.from('chat_history').select('messages').eq('user_id', currentUser.id).eq('subject_id', 'companion_bot').maybeSingle();
+      if(legacy && legacy.messages && legacy.messages.length > 0){
+        companionHistory = legacy.messages;
+        const title = (companionHistory.find(m => m.role === 'user' && typeof m.content === 'string')?.content || 'Suhbat').slice(0, 40);
+        const { data: inserted } = await sb.from('companion_chats').insert({ user_id: currentUser.id, messages: companionHistory, title }).select('id').single();
+        if(inserted) currentCompanionChatId = inserted.id;
+        companionHistory.forEach(m => addCompanionMessage(m.role === 'assistant' ? 'assistant' : 'user', typeof m.content === 'string' ? m.content : ''));
+        return;
+      }
     }
   }catch(err){ console.error(err); }
-  const name = companionProfile && companionProfile.name ? companionProfile.name : '';
-  addCompanionMessage('assistant', t('comp_greeting').replace('{name}', name ? ', ' + name : ''));
+  showCompanionGreeting();
+}
+
+async function saveCompanionChat(){
+  if(!sb || !currentUser) return;
+  const firstUserMsg = companionHistory.find(m => m.role === 'user' && typeof m.content === 'string');
+  const title = (firstUserMsg ? firstUserMsg.content : 'Suhbat').slice(0, 40);
+  try{
+    if(currentCompanionChatId){
+      await sb.from('companion_chats').update({ messages: companionHistory, title, updated_at: new Date().toISOString() }).eq('id', currentCompanionChatId);
+    } else {
+      const { data, error } = await sb.from('companion_chats').insert({ user_id: currentUser.id, messages: companionHistory, title }).select('id').single();
+      if(!error && data) currentCompanionChatId = data.id;
+    }
+  }catch(err){ console.error(err); }
+}
+
+function startNewCompanionChat(){
+  currentCompanionChatId = null;
+  companionHistory = [];
+  document.getElementById('comp-messages').innerHTML = '';
+  document.getElementById('comp-history-panel').style.display = 'none';
+  showCompanionGreeting();
+}
+document.getElementById('comp-new-chat-btn').addEventListener('click', startNewCompanionChat);
+
+async function toggleCompanionHistoryPanel(){
+  const panel = document.getElementById('comp-history-panel');
+  if(panel.style.display === 'block'){ panel.style.display = 'none'; return; }
+  if(!sb || !currentUser) return;
+  panel.innerHTML = '<div style="padding:12px; font-size:13px; color:var(--text-dim);">Yuklanmoqda...</div>';
+  panel.style.display = 'block';
+  try{
+    const { data, error } = await sb.from('companion_chats').select('id,title,updated_at').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
+    if(error || !data || data.length === 0){
+      panel.innerHTML = '<div style="padding:12px; font-size:13px; color:var(--text-dim);">Hali suhbatlar yo\'q.</div>';
+      return;
+    }
+    panel.innerHTML = '';
+    data.forEach(chat => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer;';
+      const d = new Date(chat.updated_at);
+      row.innerHTML = `<div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px;">${(chat.title || 'Suhbat').replace(/</g,'&lt;')}</div><div style="font-size:11px; color:var(--text-dim); white-space:nowrap;">${d.toLocaleDateString()}</div>`;
+      row.addEventListener('click', () => loadCompanionChatById(chat.id));
+      panel.appendChild(row);
+    });
+  }catch(err){ console.error(err); }
+}
+document.getElementById('comp-history-btn').addEventListener('click', toggleCompanionHistoryPanel);
+
+async function loadCompanionChatById(id){
+  if(!sb || !currentUser) return;
+  try{
+    const { data, error } = await sb.from('companion_chats').select('*').eq('id', id).eq('user_id', currentUser.id).maybeSingle();
+    if(error || !data) return;
+    currentCompanionChatId = data.id;
+    companionHistory = data.messages || [];
+    const msgsEl = document.getElementById('comp-messages');
+    msgsEl.innerHTML = '';
+    if(companionHistory.length === 0){ showCompanionGreeting(); }
+    else companionHistory.forEach(m => addCompanionMessage(m.role === 'assistant' ? 'assistant' : 'user', typeof m.content === 'string' ? m.content : ''));
+    document.getElementById('comp-history-panel').style.display = 'none';
+  }catch(err){ console.error(err); }
 }
 
 function addCompanionMessage(role, text){
@@ -2436,9 +2521,7 @@ async function sendCompanionMessage(){
     typing.remove();
     addCompanionMessage('assistant', reply);
     companionHistory.push({ role:'assistant', content: reply });
-    if(sb && currentUser){
-      sb.from('chat_history').upsert({ user_id: currentUser.id, subject_id: 'companion_bot', messages: companionHistory, updated_at: new Date().toISOString() }, { onConflict: 'user_id,subject_id' }).then(()=>{});
-    }
+    saveCompanionChat();
   }catch(err){
     typing.remove();
     addCompanionMessage('assistant', 'Voy, birozgina muammo bo\'ldi 😅 qayta urinib ko\'ramizmi?');
