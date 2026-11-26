@@ -696,6 +696,15 @@ const radius = orbitWrap.clientWidth * 0.5 * 0.78 || 220;
 
 SUBJECTS.forEach((s, i) => {
   const angle = (i / SUBJECTS.length) * 2 * Math.PI - Math.PI/2;
+  const angleDeg = angle * 180 / Math.PI;
+
+  const line = document.createElement('div');
+  line.className = 'node-line';
+  line.id = 'line-' + s.id;
+  line.style.left = '50%';
+  line.style.top = '50%';
+  orbitWrap.appendChild(line);
+
   const node = document.createElement('div');
   node.className = 'node n' + (i+1);
   node.id = 'node-' + s.id;
@@ -710,6 +719,8 @@ SUBJECTS.forEach((s, i) => {
     const x = Math.cos(angle) * r;
     const y = Math.sin(angle) * r;
     node.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+    line.style.width = (r - 14) + 'px';
+    line.style.transform = `rotate(${angleDeg}deg)`;
   }
   place();
   window.addEventListener('resize', place);
