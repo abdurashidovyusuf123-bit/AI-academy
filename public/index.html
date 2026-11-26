@@ -146,7 +146,11 @@
     <div id="companion-hub" style="display:none;">
       <div style="display:flex; align-items:center; justify-content:space-between;">
         <div class="modal-title" id="comp-hub-title-el">🤗 Do'stim</div>
-        <button class="expand-btn" id="comp-expand-btn" title="Kattalashtirish">⤢</button>
+        <div style="display:flex; gap:6px;">
+          <button class="expand-btn" id="comp-new-chat-btn" title="Yangi suhbat">🆕</button>
+          <button class="expand-btn" id="comp-history-btn" title="Suhbatlar tarixi">🕑</button>
+          <button class="expand-btn" id="comp-expand-btn" title="Kattalashtirish">⤢</button>
+        </div>
       </div>
       <div class="modal-sub" id="comp-hub-sub-el">Suhbatlashamizmi yoki o'ynaymizmi?</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
@@ -157,6 +161,7 @@
       </div>
 
       <div id="companion-chat-view" style="display:none;">
+        <div id="comp-history-panel" style="display:none; max-height:340px; overflow-y:auto; border:1px solid var(--line); border-radius:12px; margin-bottom:10px;"></div>
         <div class="messages" id="comp-messages" style="max-height:340px;"></div>
         <div class="image-preview-row" id="comp-image-preview-row" style="display:none;">
           <img id="comp-image-preview-thumb" alt="preview">
