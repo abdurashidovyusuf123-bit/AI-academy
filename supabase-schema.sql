@@ -15,10 +15,12 @@ create table if not exists profiles (
 
 alter table profiles enable row level security;
 
+drop policy if exists "Foydalanuvchi faqat o'z profilini ko'radi" on profiles;
 create policy "Foydalanuvchi faqat o'z profilini ko'radi"
   on profiles for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Foydalanuvchi faqat o'z taxallusini o'zgartira oladi" on profiles;
 create policy "Foydalanuvchi faqat o'z taxallusini o'zgartira oladi"
   on profiles for update
   using (auth.uid() = user_id)
@@ -145,6 +147,7 @@ create table if not exists subject_progress (
   primary key (user_id, subject_id)
 );
 alter table subject_progress enable row level security;
+drop policy if exists "Foydalanuvchi faqat o'z progressini ko'radi/o'zgartiradi" on subject_progress;
 create policy "Foydalanuvchi faqat o'z progressini ko'radi/o'zgartiradi"
   on subject_progress for all
   using (auth.uid() = user_id)
@@ -158,6 +161,7 @@ create table if not exists weekly_schedule (
   primary key (user_id, day_of_week, subject_id)
 );
 alter table weekly_schedule enable row level security;
+drop policy if exists "Foydalanuvchi faqat o'z jadvalini ko'radi/o'zgartiradi" on weekly_schedule;
 create policy "Foydalanuvchi faqat o'z jadvalini ko'radi/o'zgartiradi"
   on weekly_schedule for all
   using (auth.uid() = user_id)
@@ -171,6 +175,7 @@ create table if not exists lesson_activity (
   primary key (user_id, subject_id, activity_date)
 );
 alter table lesson_activity enable row level security;
+drop policy if exists "Foydalanuvchi faqat o'z faolligini ko'radi/o'zgartiradi" on lesson_activity;
 create policy "Foydalanuvchi faqat o'z faolligini ko'radi/o'zgartiradi"
   on lesson_activity for all
   using (auth.uid() = user_id)
@@ -185,6 +190,7 @@ create table if not exists chat_history (
   primary key (user_id, subject_id)
 );
 alter table chat_history enable row level security;
+drop policy if exists "Foydalanuvchi faqat o'z suhbat tarixini ko'radi/o'zgartiradi" on chat_history;
 create policy "Foydalanuvchi faqat o'z suhbat tarixini ko'radi/o'zgartiradi"
   on chat_history for all
   using (auth.uid() = user_id)
@@ -203,9 +209,11 @@ create table if not exists exam_attempts (
   created_at timestamptz not null default now()
 );
 alter table exam_attempts enable row level security;
+drop policy if exists "Foydalanuvchi faqat o'z urinishlarini ko'radi" on exam_attempts;
 create policy "Foydalanuvchi faqat o'z urinishlarini ko'radi"
   on exam_attempts for select
   using (auth.uid() = user_id);
+drop policy if exists "Foydalanuvchi faqat o'z urinishini qo'sha oladi" on exam_attempts;
 create policy "Foydalanuvchi faqat o'z urinishini qo'sha oladi"
   on exam_attempts for insert
   with check (auth.uid() = user_id);
@@ -219,6 +227,7 @@ create table if not exists companion_profile (
   updated_at timestamptz not null default now()
 );
 alter table companion_profile enable row level security;
+drop policy if exists "Foydalanuvchi faqat o'z Do'stim profilini ko'radi/o'zgartiradi" on companion_profile;
 create policy "Foydalanuvchi faqat o'z Do'stim profilini ko'radi/o'zgartiradi"
   on companion_profile for all
   using (auth.uid() = user_id)
