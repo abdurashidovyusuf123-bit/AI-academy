@@ -98,39 +98,73 @@
   }
   .orbit-ring{
     position:absolute; inset: 8%;
-    border: 1px solid var(--line);
+    border: 1.5px dashed var(--line);
     border-radius: 50%;
   }
+  .orbit-ring::before{
+    content:''; position:absolute; inset: 16%;
+    border: 1px dashed var(--line); border-radius: 50%; opacity: .6;
+  }
+
+  /* Markaziy "gear" o'zak — AI rasmidagi tishli g'ildirakka o'xshash */
   .core{
     position:absolute; top:50%; left:50%; transform: translate(-50%,-50%);
-    width: 132px; height:132px; border-radius:50%;
-    background: var(--surface);
+    width: 140px; height:140px; border-radius:50%;
+    background:
+      repeating-conic-gradient(var(--surface-2) 0deg 7deg, var(--surface) 7deg 15deg);
     border: 1px solid var(--line);
     display:flex; align-items:center; justify-content:center;
     flex-direction:column; gap:4px;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 20px 60px rgba(0,0,0,0.5);
+    box-shadow: 0 0 0 10px var(--bg), 0 0 0 11px var(--line), 0 20px 60px rgba(0,0,0,0.5);
+    z-index: 3;
   }
-  .core-label{ font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600;}
-  .core-sub{ font-size: 10px; color: var(--text-dim); text-align:center; padding:0 10px;}
+  .core::before{
+    content:''; position:absolute; inset: 14px; border-radius:50%;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+  .core-label, .core-sub{ position: relative; z-index: 1; }
+  .core-label{ font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:700; letter-spacing: .02em; }
+  .core-sub{ font-size: 10px; color: var(--text-dim); text-align:center; padding:0 10px; position:relative; z-index:1; }
+
+  /* Markazdan har bir fanga boradigan chiziqli (dashed) "spoke" */
+  .node-line{
+    position:absolute;
+    height: 0;
+    border-top: 1.5px dashed var(--line);
+    transform-origin: 0 50%;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity .3s ease;
+  }
+  .node-line::after{
+    content:''; position:absolute; right: -3px; top:-3px;
+    width:6px; height:6px; border-radius:50%; background: var(--line);
+  }
 
   .node{
     position:absolute;
-    width: 104px; height: 104px;
+    width: 86px; height: 86px;
     display:flex; align-items:center; justify-content:center;
-    flex-direction: column; gap:6px;
+    flex-direction: column; gap:4px;
     border-radius: 50%;
     background: var(--surface);
-    border: 1px solid var(--line);
+    border: 1px dashed var(--line);
     cursor:pointer;
     transition: transform .4s ease, opacity .3s ease, border-color .25s, box-shadow .25s, background .25s;
     text-align:center;
     padding: 6px;
+    z-index: 2;
   }
-  .node:hover{ transform: scale(1.08); }
+  .node-icon{ filter: grayscale(1) contrast(1.1); opacity: .82; transition: filter .25s, opacity .25s; }
+  .node:hover{ transform: scale(1.1); border-style: solid; }
+  .node:hover .node-icon{ filter:none; opacity:1; }
   .node.active{
     background: var(--surface-2);
+    border-style: solid;
     box-shadow: 0 0 0 1px currentColor, 0 0 30px -4px currentColor;
   }
+  .node.active .node-icon{ filter:none; opacity:1; }
 
   /* Fan tanlangach (yoki Do'stim ochilganda) — fanlar doirasi chap tarafga o'tib berkinadi,
      faqat tanlangan fan nomi kichik "tugma" sifatida qoladi — asosiy ekranga halaqit bermaydi */
@@ -140,6 +174,7 @@
     transition: min-height .4s ease;
   }
   .orbit-wrap.orbit-collapsed .orbit-ring{ opacity: 0; pointer-events:none; transition: opacity .3s ease; }
+  .orbit-wrap.orbit-collapsed .node-line{ opacity: 0; pointer-events:none; }
   .orbit-wrap.orbit-collapsed .node{
     transform: translate(-130vw, -50%) !important;
     opacity: 0;
@@ -153,7 +188,10 @@
     padding: 12px 22px;
     margin: 0 auto;
     cursor: pointer;
+    background: var(--surface);
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3);
   }
+  .orbit-wrap.orbit-collapsed .core::before{ display: none; }
   .orbit-wrap.orbit-collapsed .core:hover{ border-color: var(--accent); }
   .orbit-wrap.orbit-collapsed .core-sub{ display: none; }
   .orbit-wrap.orbit-collapsed .core::after{ content: '⇅'; font-size: 12px; color: var(--text-dim); margin-left: 2px; }
