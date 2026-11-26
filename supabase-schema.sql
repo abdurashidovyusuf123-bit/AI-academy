@@ -313,3 +313,22 @@ create table if not exists click_transactions (
   created_at timestamptz not null default now()
 );
 alter table click_transactions enable row level security;
+
+-- ===== Do'stim (companion bot) — bir nechta alohida suhbatlar (ChatGPT/Claude kabi "Yangi suhbat" + tarix) =====
+create table if not exists companion_chats (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  title text not null default 'Suhbat',
+  messages jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table companion_chats enable row level security;
+
+drop policy if exists "Foydalanuvchi faqat o'z Do'stim suhbatlarini ko'radi/boshqaradi" on companion_chats;
+create policy "Foydalanuvchi faqat o'z Do'stim suhbatlarini ko'radi/boshqaradi"
+  on companion_chats for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists companion_chats_user_updated_idx on companion_chats(user_id, updated_at desc);
