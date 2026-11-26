@@ -197,3 +197,8 @@ Faylni almashtirish uchun: `public/index.html`, `public/js/app.js`, `public/css/
 Endi fan tanlaganingizda (yoki "Do'stim" ochganingizda), o'rtadagi katta doira (8 ta fan) avtomatik **berkinadi** — faqat tanlangan fan nomi kichik tugma shaklida qoladi, asosiy chat ekraniga endi hech narsa halaqit bermaydi. Boshqa fanni tanlamoqchi bo'lsangiz, o'sha kichik tugmani (fan nomi yozilgan joyni) bosing — doira yana ochiladi.
 
 Faylni almashtirish: `public/js/app.js`, `public/css/style.css`.
+
+## 24-qadam: Kirishdagi doira — AI/gear uslubida
+Bosh sahifadagi fan tanlash doirasi endi siz yuborgan "AI gear" rasmiga o'xshab qoldi: o'rtada tishli g'ildirak (gear) ko'rinishidagi doira, undan har bir fanga chiziqli (dashed) chiziq tortilgan, fan belgilari (ikonkalar) oq-qora (grayscale) uslubda — sichqoncha olib borilganda rangli bo'lib qoladi.
+
+Faylni almashtirish: `public/js/app.js`, `public/css/style.css`.
